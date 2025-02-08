@@ -10,15 +10,21 @@ pub fn impl_component_id_macro(ast: &syn::DeriveInput) -> TokenStream {
     let name = &ast.ident;
 
     let gen = quote! {
-        impl Component for #name {
-            const ID: u64 = #id;
+        impl #name {
+            pub const COMPONENT_ID: u64 = #id;
+        }
 
+        impl Component for #name {
             fn get_component_id(&self) -> u64 {
-                Self::ID
+                #id
             }
 
-            fn component_id() -> u64 {
-                Self::ID
+            fn as_any(&self) -> &dyn Any {
+                self
+            }
+
+            fn as_any_mut(&mut self) -> &mut dyn Any {
+                self
             }
         }
     };
