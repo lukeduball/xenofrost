@@ -2,7 +2,6 @@ use std::{cell::{Ref, RefCell, RefMut}, collections::HashMap, rc::Rc};
 use component::Component;
 
 pub mod component;
-mod query;
 
 type EntityComponentMap = HashMap<Entity, Rc<RefCell<dyn Component>>>;
 
