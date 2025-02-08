@@ -6,7 +6,7 @@ pub mod component;
 type EntityComponentMap = HashMap<Entity, Rc<RefCell<dyn Component>>>;
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
-pub struct Entity(u64);
+pub struct Entity(pub u64);
 
 impl Into<u64> for Entity {
     fn into(self) -> u64 {
@@ -47,12 +47,35 @@ impl World {
 
     }
 
+    pub fn spawn_entity(&mut self) -> Entity {
+        let entity = Entity(self.entities.len() as u64);
+        self.entities.push(entity);
+        entity
+    }
+
+    pub fn add_component_to_entity<T: Component>(&mut self, entity: Entity, component: T) {
+        let component_id = component.get_component_id();
+        let component_ref: Rc<RefCell<dyn Component>> = Rc::new(RefCell::new(component));
+
+        let component_hash_table_option = self.components.get_mut(&component_id);
+        match component_hash_table_option {
+            Some(component_hash_table) => {
+                component_hash_table.insert(entity, component_ref);
+            }
+            None => {
+                let mut entity_component_hash_map = HashMap::new();
+                entity_component_hash_map.insert(entity, component_ref);
+                self.components.insert(component_id, entity_component_hash_map);
+            }
+        }
+    }
+
     pub fn get_entities_with_component(&self, entity_list: &Vec<Entity>, component_id: u64) -> Vec<Entity> {
         let mut result_entity_list: Vec<Entity> = Vec::new();
 
         let component_hash_map_option = self.components.get(&component_id);
         if let Some(component_hash_map) = component_hash_map_option {
-            if !entity_list.is_empty() {
+            if entity_list.is_empty() {
                 result_entity_list = self.entities.iter().cloned().filter(|entity| component_hash_map.contains_key(entity)).collect();
             }
             else {

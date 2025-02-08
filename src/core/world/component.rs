@@ -1,5 +1,6 @@
 use std::any::Any;
 
+use glam::Vec3;
 use xenofrost_macros::Component;
 
 pub trait Component : Any {
@@ -9,6 +10,12 @@ pub trait Component : Any {
 }
 
 #[derive(Component)]
-pub struct Test1;
+pub struct Test1(pub u64);
 #[derive(Component)]
-pub struct Test2;
+pub struct Test2(pub f64);
+
+#[derive(Component)]
+pub struct Test3 {
+    pub color: Vec3,
+    pub position: Vec3
+}
