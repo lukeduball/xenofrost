@@ -16,27 +16,124 @@ pub fn derive_component_id_macro(input: TokenStream) -> TokenStream {
     impl_component_id_macro(&ast)
 }
 
-fn parse_one_or_more<T: Parse>(input: ParseStream) -> syn::Result<Vec<T>> {
-    let mut result = Vec::new();
-    result.push(input.parse()?);
-    while let Ok(_comma) = input.parse::<Token![,]>() {
+struct ComponentBorrow(bool);
+
+impl ToTokens for ComponentBorrow {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        let result = if self.0 {
+            quote! {
+                .borrow_mut()
+            }
+        }
+        else {
+            quote! {
+                .borrow()
+            }
+        };
+
+        tokens.extend(result);
+    }
+}
+
+struct ComponentTypeQueryConstructor {
+    component_type_struct: ComponentType,
+}
+
+impl ComponentTypeQueryConstructor {
+    fn new(component_type_struct: ComponentType) -> Self {
+        ComponentTypeQueryConstructor{
+            component_type_struct
+        }
+    }
+}
+
+impl ToTokens for ComponentTypeQueryConstructor {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        let component_type = &self.component_type_struct.component_type;
+
+        let result = if self.component_type_struct.mutable {
+            quote! {
+                crate::core::world::mut_downcast::<#component_type>
+            }
+        }
+        else {
+            quote! {
+                crate::core::world::ref_downcast::<#component_type>
+            }
+        };
+
+        tokens.extend(result);
+    }
+}
+
+#[derive(Clone)]
+struct ComponentType {
+    component_type: syn::Type,
+    mutable: bool,
+}
+
+impl Parse for ComponentType {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let mut is_mut = false;
+        if input.peek(Token![mut]) {
+            _ = input.parse::<Token![mut]>();
+            is_mut = true;
+        }
+
         let item = input.parse()?;
-        result.push(item);
+        Ok(ComponentType {
+            component_type: item,
+            mutable: is_mut
+        })
+    }
+}
+
+impl ToTokens for ComponentType {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        let component_type = &self.component_type;
+        // RefMut<Type> or Ref<Type>
+        let result = if self.mutable {
+            quote! {
+                std::cell::RefMut<'a, #component_type>
+            }
+        }
+        else {
+            quote! {
+                std::cell::Ref<'a, #component_type>
+            }
+        };
+
+        tokens.extend(result)
+    }
+}
+
+fn parse_one_or_more<T: Parse>(input: ParseStream) -> syn::Result<Vec<T>> {
+    let mut result: Vec<T> = Vec::new();
+    result.push(input.parse::<T>()?);
+    while let Ok(_comma) = input.parse::<Token![,]>() {
+        result.push(input.parse::<T>()?);
     }
 
     Ok(result)
 }
 
 struct QueryResult {
-    component_types: Vec<syn::Type>
+    component_types: Vec<ComponentType>,
+    component_type_list: Vec<syn::Type>
 }
 
 impl Parse for QueryResult {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let component_types = parse_one_or_more(input)?;
+        let component_types = parse_one_or_more::<ComponentType>(input)?;
+
+        let mut component_type_list = Vec::new();
+        for component in &component_types {
+            component_type_list.push(component.component_type.clone());
+        }
 
         Ok(Self {
-            component_types
+            component_types,
+            component_type_list
         })
     }
 }
@@ -44,19 +141,27 @@ impl Parse for QueryResult {
 impl ToTokens for QueryResult {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         let component_types = &self.component_types;
-        let number_of_types = component_types.len();
+        let component_type_list = &self.component_type_list;
+        let number_of_types = component_type_list.len();
+
+        let mut component_type_query_const = Vec::new();
+        let mut component_borrow = Vec::new();
+        for component_type in component_types {
+            component_type_query_const.push(ComponentTypeQueryConstructor::new(component_type.clone()));
+            component_borrow.push(ComponentBorrow(component_type.mutable));
+        }
 
         let index = (0..number_of_types).map(syn::Index::from);
 
         let component_ids = quote! {
-            vec![#((<#component_types>::COMPONENT_ID) ,)*]
+            vec![#((<#component_type_list>::COMPONENT_ID) ,)*]
         };
 
         tokens.extend(quote! {
-            | world: &xenofrost::core::world::World | {
+            | world: &crate::core::world::World | {
                 struct QueryResultEntry {
-                    entity: xenofrost::core::world::Entity,
-                    components: [std::rc::Rc<std::cell::RefCell<dyn xenofrost::core::world::component::Component>>; #number_of_types]
+                    entity: crate::core::world::Entity,
+                    components: [std::rc::Rc<std::cell::RefCell<dyn crate::core::world::component::Component>>; #number_of_types]
                 }
     
                 struct QueryResult {
@@ -86,14 +191,14 @@ impl ToTokens for QueryResult {
                 };
 
                 impl<'a> Iterator for QueryResultIterator<'a> {
-                    type Item = (xenofrost::core::world::Entity #(, std::cell::Ref<'a, (#component_types)>)*);
+                    type Item = (crate::core::world::Entity #(, (#component_types))*);
                     
                     fn next(&mut self) -> Option<Self::Item> {
                         if self.index < self.query_result.entries.len() {
                             let query_result_entry = &self.query_result.entries[self.index];
                             let entity = query_result_entry.entity;
                             let components = &query_result_entry.components;
-                            let result = (entity #(, xenofrost::core::world::ref_downcast::<#component_types>(components[#index].borrow()))*);
+                            let result = (entity #(, (#component_type_query_const)(components[#index]#component_borrow))*);
                             self.index += 1;
                             Some(result)
                         }
@@ -103,7 +208,7 @@ impl ToTokens for QueryResult {
                     }
                 };
     
-                let mut entities: Vec<xenofrost::core::world::Entity> = Vec::new();
+                let mut entities: Vec<crate::core::world::Entity> = Vec::new();
                 for component_id in #component_ids {
                     entities = world.get_entities_with_component(&entities, component_id);
                 }
@@ -113,7 +218,7 @@ impl ToTokens for QueryResult {
                     let result = QueryResultEntry {
                         entity, 
                         components: [
-                            #(world.query_component(entity, (<#component_types>::COMPONENT_ID)).unwrap(),)*
+                            #(world.query_component(entity, (<#component_type_list>::COMPONENT_ID)).unwrap(),)*
                         ]
                     };
                     query_result.entries.push(result);

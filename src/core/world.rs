@@ -23,6 +23,10 @@ pub fn ref_downcast<T: Component>(reference: Ref<dyn Component>) -> Ref<T> {
     Ref::map(reference, |x| x.as_any().downcast_ref::<T>().unwrap())
 }
 
+pub fn mut_downcast<T: Component>(reference: RefMut<dyn Component>) -> RefMut<T> {
+    RefMut::map(reference, |x| x.as_any_mut().downcast_mut::<T>().unwrap())
+}
+
 pub fn borrow_mut_downcast<T: Component>(cell: &RefCell<dyn Component>) -> RefMut<T> {
     let r = cell.borrow_mut();
     RefMut::map(r, |x| x.as_any_mut().downcast_mut::<T>().unwrap())
@@ -98,5 +102,75 @@ impl World {
         }
 
         result
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use glam::Vec3;
+    use xenofrost_macros::world_query;
+
+    use super::World;
+    use crate::core::world::component::{Test1, Test2, Test3};
+
+
+    #[test]
+    fn query_world_test() {
+        let mut world = World::new();
+        let entity1 = world.spawn_entity();
+        world.add_component_to_entity(entity1, Test1(1));
+
+        let entity2 = world.spawn_entity();
+        world.add_component_to_entity(entity2, Test1(5));
+        world.add_component_to_entity(entity2, Test2(4.234));
+
+
+        let entity3 = world.spawn_entity();
+        world.add_component_to_entity(entity3, Test2(6.4353));
+        world.add_component_to_entity(entity3, Test3 {
+        color: Vec3::new(1.0, 0.5, 0.5),
+        position: Vec3::new(323.0, 434.4, 934.3) 
+        });
+
+
+        let entity4 = world.spawn_entity();
+        world.add_component_to_entity(entity4, Test1(99));
+        world.add_component_to_entity(entity4, Test2(8453.34));
+        world.add_component_to_entity(entity4, Test3 {
+            color: Vec3::new(0.0, 0.0, 1.0),
+            position: Vec3::new(342.0, 965.0, 4.0)
+        });
+
+        let query1 = world_query!(Test1, Test2, Test3);
+        let result1 = query1(&world);
+        for (entity, test1, test2, test3) in result1.iter() {
+            println!("This is a valid query {} {} {} {} {}", entity.0, test1.0, test2.0, test3.color, test3.position);
+        }
+
+        let query2 = world_query!(Test1);
+        let result2 = query2(&world);
+        for (entity, test1) in result2.iter() {
+            println!("This is a valid query {} {}", entity.0, test1.0);
+        }
+
+        let query3 = world_query!(Test1, Test2);
+        let result3 = query3(&world);
+        for (entity, test1, test2) in result3.iter() {
+            println!("This is a valid query {} {} {}", entity.0, test1.0, test2.0);
+        }
+
+        let query_mut = world_query!(mut Test2, Test3);
+        let query_mut_result = query_mut(&world);
+        for (entity, mut test2, test3) in query_mut_result.iter() {
+            println!("This is a mut pre-query {} {} {} {}", entity.0, test2.0, test3.color, test3.position);
+            test2.0 = 10.5;
+            println!("This is a mut post-query {} {} {} {}", entity.0, test2.0, test3.color, test3.position);
+        }
+
+        let query4 = world_query!(Test2, Test3);
+        let result4 = query4(&world);
+        for (entity, test2, test3) in result4.iter() {
+            println!("This is a valid query {} {} {} {}", entity.0, test2.0, test3.color, test3.position);
+        }
     }
 }
