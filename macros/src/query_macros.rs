@@ -89,12 +89,12 @@ impl ToTokens for ComponentCastTokenGen {
 
         let result = if self.component_info.mutable {
             quote! {
-                crate::core::world::mut_downcast::<#component_type>
+                crate::core::world::component::component_mut_downcast::<#component_type>
             }
         }
         else {
             quote! {
-                crate::core::world::ref_downcast::<#component_type>
+                crate::core::world::component::component_ref_downcast::<#component_type>
             }
         };
 

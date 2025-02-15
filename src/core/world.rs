@@ -14,24 +14,6 @@ impl Into<u64> for Entity {
     }
 }
 
-pub fn borrow_downcast<T: Component>(cell: &RefCell<dyn Component>) -> Ref<T> {
-    let r = cell.borrow();
-    Ref::map(r, |x| x.as_any().downcast_ref::<T>().unwrap())
-}
-
-pub fn ref_downcast<T: Component>(reference: Ref<dyn Component>) -> Ref<T> {
-    Ref::map(reference, |x| x.as_any().downcast_ref::<T>().unwrap())
-}
-
-pub fn mut_downcast<T: Component>(reference: RefMut<dyn Component>) -> RefMut<T> {
-    RefMut::map(reference, |x| x.as_any_mut().downcast_mut::<T>().unwrap())
-}
-
-pub fn borrow_mut_downcast<T: Component>(cell: &RefCell<dyn Component>) -> RefMut<T> {
-    let r = cell.borrow_mut();
-    RefMut::map(r, |x| x.as_any_mut().downcast_mut::<T>().unwrap())
-}
-
 //Note: This struct is also used to create the Render World. If specific World only or RenderWorld only items are required
 //      these should be split into two structs.
 pub struct World {
@@ -108,10 +90,20 @@ impl World {
 #[cfg(test)]
 mod tests {
     use glam::Vec3;
-    use xenofrost_macros::world_query;
+    use xenofrost_macros::{world_query, Component};
 
-    use super::World;
-    use crate::core::world::component::{Test1, Test2, Test3};
+    use super::{component::Component, World};
+
+    #[derive(Component)]
+    struct Test1(u64);
+    #[derive(Component)]
+    struct Test2(f64);
+
+    #[derive(Component)]
+    struct Test3 {
+        color: Vec3,
+        position: Vec3
+    }
 
 
     #[test]

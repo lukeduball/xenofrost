@@ -1,7 +1,4 @@
-use std::any::Any;
-
-use glam::Vec3;
-use xenofrost_macros::Component;
+use std::{any::Any, cell::{Ref, RefMut}};
 
 pub trait Component : Any {
     fn get_component_id(&self) -> u64;
@@ -9,13 +6,10 @@ pub trait Component : Any {
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
-#[derive(Component)]
-pub struct Test1(pub u64);
-#[derive(Component)]
-pub struct Test2(pub f64);
+pub fn component_ref_downcast<T: Component>(reference: Ref<dyn Component>) -> Ref<T> {
+    Ref::map(reference, |x| x.as_any().downcast_ref::<T>().unwrap())
+}
 
-#[derive(Component)]
-pub struct Test3 {
-    pub color: Vec3,
-    pub position: Vec3
+pub fn component_mut_downcast<T: Component>(reference: RefMut<dyn Component>) -> RefMut<T> {
+    RefMut::map(reference, |x| x.as_any_mut().downcast_mut::<T>().unwrap())
 }

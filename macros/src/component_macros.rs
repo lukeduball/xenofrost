@@ -19,11 +19,11 @@ pub fn impl_component_id_macro(ast: &syn::DeriveInput) -> TokenStream {
                 #id
             }
 
-            fn as_any(&self) -> &dyn Any {
+            fn as_any(&self) -> &dyn std::any::Any {
                 self
             }
 
-            fn as_any_mut(&mut self) -> &mut dyn Any {
+            fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
                 self
             }
         }
