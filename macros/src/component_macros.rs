@@ -2,6 +2,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use quote::quote;
 
 use proc_macro::TokenStream;
+use syn::parse_macro_input;
 
 static COMPONENT_ID_COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -29,4 +30,14 @@ pub fn impl_component_id_macro(ast: &syn::DeriveInput) -> TokenStream {
         }
     };
     gen.into()
+}
+
+pub fn impl_get_component_id_macro(input: TokenStream) -> TokenStream {
+    let type_result = parse_macro_input!(input as syn::Type);
+
+    let result = quote! {
+        <#type_result>::COMPONENT_ID
+    };
+
+    TokenStream::from(result)
 }

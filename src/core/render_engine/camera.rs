@@ -1,5 +1,7 @@
 use glam::{Mat4, Vec3};
+use xenofrost_macros::Component;
 
+use crate::core::world::component::Component;
 use crate::core::input_manager::InputManager;
 
 pub struct OrthoCamera {
@@ -92,4 +94,30 @@ impl CameraController {
             camera.eye.y -= self.speed;
         }
     }
+}
+
+struct PerspectiveProjection {
+    field_of_view: f32,
+    aspect_ratio: f32,
+    near_clip: f32,
+    far_clip: f32
+}
+
+struct OrthographicProjection {
+    width: f32,
+    height: f32,
+    near_clip: f32,
+    far_clip: f32
+}
+
+enum CameraProjection {
+    Perspective(PerspectiveProjection),
+    Orthographic(OrthographicProjection)
+}
+
+#[derive(Component)]
+struct Camera {
+    projection: CameraProjection,
+    camera_uniform: CameraUniform,
+    camera_bind_group: wgpu::BindGroup,
 }

@@ -1,7 +1,7 @@
 use cfg_if::cfg_if;
 use winit::{event::{ElementState, Event, KeyEvent, WindowEvent}, event_loop::EventLoop, keyboard::{KeyCode, PhysicalKey}, window::WindowBuilder};
 
-use crate::core::{input_manager::InputManager, render_engine::RenderEngine};
+use crate::core::{input_manager::InputManager, render_engine::RenderEngine, world::{World, WorldHandler}};
 
 #[cfg(target_arch="wasm32")]
 use wasm_bindgen::prelude::*;
@@ -41,6 +41,9 @@ pub async fn run() {
     let size = window.inner_size();
     let mut render_engine = RenderEngine::new(&window, size.width, size.height).await;
     let mut input_manager = InputManager::new();
+    let mut world_handler = WorldHandler::new();
+    let mut world = World::new();
+    world_handler.initialize();
 
     let _ = event_loop.run(move |event, control_flow| match event {
         Event::WindowEvent {
@@ -62,7 +65,7 @@ pub async fn run() {
                     render_engine.resize(physical_size.width, physical_size.height);
                 },
                 WindowEvent::RedrawRequested => {
-                    //state.update();
+                    world_handler.update(&mut world);
                     if !render_engine.render_event() {
                         control_flow.exit();
                     }
