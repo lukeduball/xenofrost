@@ -1,4 +1,4 @@
-use std::{mem, ops::Range};
+use std::{mem, ops::Range, sync::Arc};
 
 use crate::core::render_engine::mesh::Vertex;
 
@@ -7,6 +7,9 @@ use glam::{Mat4, Vec3};
 use material::{create_color_material, Material};
 use mesh::{create_quad_mesh, Mesh, ModelVertex};
 use wgpu::util::DeviceExt;
+use winit::window::Window;
+use xenofrost_macros::Resource;
+use crate::core::world::resource::Resource;
 
 pub mod camera;
 pub mod texture;
@@ -70,13 +73,13 @@ impl InstanceRaw {
     }
 }
 
+#[derive(Resource)]
 pub struct RenderEngine<'a> {
     surface: wgpu::Surface<'a>,
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     size: PhysicalSize,
-    window: &'a winit::window::Window,
     render_pipeline: wgpu::RenderPipeline,
     camera: OrthoCamera,
     camera_uniform: CameraUniform,
@@ -89,7 +92,7 @@ pub struct RenderEngine<'a> {
 }
 
 impl<'a> RenderEngine<'a> {
-    pub async fn new(window: &'a winit::window::Window, width: u32, height: u32) -> RenderEngine<'a> {
+    pub async fn new(window: Arc<Window>, width: u32, height: u32) -> RenderEngine<'a> {
         let size = PhysicalSize { width, height };
 
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
@@ -294,7 +297,6 @@ impl<'a> RenderEngine<'a> {
             queue,
             config,
             size,
-            window,
             render_pipeline,
             camera,
             camera_uniform,
@@ -373,10 +375,6 @@ impl<'a> RenderEngine<'a> {
         output.present();
 
         Ok(())
-    }
-
-    pub fn window(&self) -> &winit::window::Window {
-        &self.window
     }
 }
 

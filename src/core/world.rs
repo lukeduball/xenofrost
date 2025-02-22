@@ -5,7 +5,7 @@ use resource::{Resource, ResourceHandle};
 use xenofrost_macros::Component;
 
 pub mod component;
-mod resource;
+pub mod resource;
 
 #[derive(Component)]
 struct Transform2D {
