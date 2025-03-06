@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
 use winit::{event::{KeyEvent, WindowEvent}, keyboard::{KeyCode, PhysicalKey}};
+use xenofrost_macros::Resource;
+
+use super::world::resource::Resource;
 
 pub struct KeyState {
     is_down: bool,
@@ -32,6 +35,7 @@ impl KeyState {
     }
 }
 
+#[derive(Resource)]
 pub struct InputManager {
     key_binding: HashMap<KeyCode, &'static str>,
     key_state: HashMap<&'static str, KeyState>

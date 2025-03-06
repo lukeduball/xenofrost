@@ -17,7 +17,6 @@ struct Engine {
     window: Option<Arc<Window>>,
     world_handler: WorldHandler,
     world: World,
-    input_manager: InputManager
 }
 
 impl Engine {
@@ -26,7 +25,6 @@ impl Engine {
             window: None,
             world_handler: WorldHandler::new(),
             world: World::new(),
-            input_manager: InputManager::new()
         }
     }
 }
@@ -42,6 +40,7 @@ impl ApplicationHandler for Engine {
 
         let arc_window = Arc::new(window);
         self.world.add_resource(block_on(RenderEngine::new(Arc::clone(&arc_window), size.width, size.height)));
+        self.world.add_resource(InputManager::new());
         self.world_handler.initialize(&mut self.world);
 
         self.window = Some(arc_window);
@@ -65,8 +64,11 @@ impl ApplicationHandler for Engine {
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, window_id: WindowId, event: WindowEvent) {
+        let input_manager = self.world.query_resource::<InputManager>(get_resource_id!(InputManager)).unwrap();
+        //TODO This could potentially be added as a system instead
+        input_manager.data_mut().process_input(&event);
+
         self.world_handler.update(&mut self.world);
-        self.input_manager.process_input(&event);
 
         match event {
             WindowEvent::CloseRequested | WindowEvent::KeyboardInput { 

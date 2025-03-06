@@ -5,7 +5,7 @@ use resource::{Resource, ResourceHandle};
 use wgpu::{util::{BufferInitDescriptor, DeviceExt}, BufferUsages};
 use xenofrost_macros::{get_resource_id, world_query, Component};
 
-use super::render_engine::{camera::{Camera, CameraBindGroupLayout, CameraProjection, CameraUniform, OrthographicProjection}, mesh::QuadMesh, pipeline::Pipeline2D, AspectRatio, DrawMesh, InstanceRaw, RenderCircle, RenderCircleInstances, RenderEngine};
+use super::{input_manager::{self, InputManager}, render_engine::{camera::{Camera, CameraBindGroupLayout, CameraProjection, CameraUniform, OrthographicProjection}, mesh::QuadMesh, pipeline::Pipeline2D, AspectRatio, DrawMesh, InstanceRaw, RenderCircle, RenderCircleInstances, RenderEngine}};
 
 pub mod component;
 pub mod resource;
@@ -243,7 +243,31 @@ impl World {
 }
 
 fn camera_controller_system(world: &mut World) {
-    //println!("Camera System");
+    let speed = 0.01;
+
+    let input_manager_handle = world.query_resource::<InputManager>(get_resource_id!(InputManager)).unwrap();
+    let camera_query = world_query!(mut Transform2D, Camera);
+    let camera_query_invoke = camera_query(world);
+    let (_, mut transform2d, _) = camera_query_invoke.iter().next().unwrap();
+
+    let input_manager = input_manager_handle.data();
+    let left_key_state = input_manager.get_key_state("left").unwrap();
+    let right_key_state = input_manager.get_key_state("right").unwrap();
+    let up_key_state = input_manager.get_key_state("up").unwrap();
+    let down_key_state = input_manager.get_key_state("down").unwrap();
+
+    if left_key_state.get_is_down() {
+        transform2d.translation.x -= speed;
+    }
+    if right_key_state.get_is_down() {
+        transform2d.translation.x += speed;
+    }
+    if up_key_state.get_is_down() {
+        transform2d.translation.y += speed;
+    }
+    if down_key_state.get_is_down() {
+        transform2d.translation.y -= speed;
+    }
 }
 
 fn camera_prepare_system(world: &mut World) {

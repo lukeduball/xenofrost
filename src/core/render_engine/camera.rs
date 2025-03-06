@@ -26,38 +26,6 @@ impl CameraUniform {
     }
 }
 
-pub struct CameraController {
-    speed: f32,
-}
-
-impl CameraController {
-    pub fn new(speed: f32) -> Self {
-        Self {
-            speed
-        }
-    }
-
-    /*pub fn update_camera(&self, camera: &mut OrthoCamera, input_manager: &InputManager) {
-        let left_key_state = input_manager.get_key_state("left").unwrap();
-        let right_key_state = input_manager.get_key_state("right").unwrap();
-        let up_key_state = input_manager.get_key_state("up").unwrap();
-        let down_key_state = input_manager.get_key_state("down").unwrap();
-
-        if left_key_state.get_is_down() {
-            camera.eye.x -= self.speed;
-        }
-        if right_key_state.get_is_down() {
-            camera.eye.x += self.speed;
-        }
-        if up_key_state.get_is_down() {
-            camera.eye.y += self.speed;
-        }
-        if down_key_state.get_is_down() {
-            camera.eye.y -= self.speed;
-        }
-    }*/
-}
-
 #[derive(Resource)]
 pub struct CameraBindGroupLayout {
     pub bind_group_layout: wgpu::BindGroupLayout
