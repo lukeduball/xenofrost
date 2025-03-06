@@ -2,42 +2,48 @@ use std::sync::Arc;
 
 use cfg_if::cfg_if;
 use pollster::block_on;
-use winit::{application::ApplicationHandler, event::{ElementState, Event, KeyEvent, WindowEvent}, event_loop::{ActiveEventLoop, ControlFlow, EventLoop}, keyboard::{KeyCode, PhysicalKey}, window::{Window, WindowId}};
+use winit::{application::ApplicationHandler, event::{ElementState, KeyEvent, WindowEvent}, event_loop::{ActiveEventLoop, ControlFlow, EventLoop}, keyboard::{KeyCode, PhysicalKey}, window::{Window, WindowId}};
+use xenofrost_macros::get_resource_id;
 
 use crate::core::{input_manager::InputManager, render_engine::RenderEngine, world::{World, WorldHandler}};
 
 #[cfg(target_arch="wasm32")]
 use wasm_bindgen::prelude::*;
 
+use super::render_engine::AspectRatio;
 
-struct Engine<'a> {
+
+struct Engine {
     window: Option<Arc<Window>>,
     world_handler: WorldHandler,
     world: World,
-    render_engine: Option<RenderEngine<'a>>,
     input_manager: InputManager
 }
 
-impl<'a> Engine<'a> {
+impl Engine {
     fn new() -> Self {
         Self {
             window: None,
             world_handler: WorldHandler::new(),
             world: World::new(),
-            render_engine: None,
             input_manager: InputManager::new()
         }
     }
 }
 
-impl<'a> ApplicationHandler for Engine<'a> {
+impl ApplicationHandler for Engine {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         let window = event_loop.create_window(Window::default_attributes()).unwrap();
         let size = window.inner_size();
-        self.world_handler.initialize();
+
+        self.world.add_resource(AspectRatio {
+            aspect_ratio: size.width as f32 / size.height as f32
+        });
 
         let arc_window = Arc::new(window);
-        self.render_engine = Some(block_on(RenderEngine::new(Arc::clone(&arc_window), size.width, size.height)));
+        self.world.add_resource(block_on(RenderEngine::new(Arc::clone(&arc_window), size.width, size.height)));
+        self.world_handler.initialize(&mut self.world);
+
         self.window = Some(arc_window);
 
         #[cfg(target_arch="wasm32")]
@@ -59,7 +65,6 @@ impl<'a> ApplicationHandler for Engine<'a> {
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, window_id: WindowId, event: WindowEvent) {
-        
         self.world_handler.update(&mut self.world);
         self.input_manager.process_input(&event);
 
@@ -73,12 +78,13 @@ impl<'a> ApplicationHandler for Engine<'a> {
                 .. 
             } => event_loop.exit(),
             WindowEvent::Resized(physical_size) => {
-                self.render_engine.as_mut().unwrap().resize(physical_size.width, physical_size.height);
+                self.world_handler.resize(physical_size.width, physical_size.height, &mut self.world);
             },
             WindowEvent::RedrawRequested => {
-                if !self.render_engine.as_mut().unwrap().render_event() {
+                if !self.world_handler.render(&mut self.world) {
                     event_loop.exit();
                 }
+                self.window.as_ref().unwrap().request_redraw();
             }
             _ => ()
         }

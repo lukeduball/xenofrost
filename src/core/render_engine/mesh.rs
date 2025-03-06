@@ -1,4 +1,7 @@
 use wgpu::util::DeviceExt;
+use xenofrost_macros::Resource;
+
+use crate::core::world::resource::Resource;
 
 pub trait Vertex {
     fn desc() -> wgpu::VertexBufferLayout<'static>;
@@ -28,6 +31,19 @@ impl Vertex for ModelVertex {
                     format: wgpu::VertexFormat::Float32x2,
                 }
             ]
+        }
+    }
+}
+
+#[derive(Resource)]
+pub struct QuadMesh {
+    pub mesh: Mesh
+}
+
+impl QuadMesh {
+    pub fn new(device: &wgpu::Device) -> Self {
+        Self {
+            mesh: create_quad_mesh(device)
         }
     }
 }

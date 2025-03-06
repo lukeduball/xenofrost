@@ -1,7 +1,7 @@
 struct CameraUniform {
     view_proj: mat4x4<f32>,
 };
-@group(1) @binding(0)
+@group(0) @binding(0)
 var<uniform> camera: CameraUniform;
 
 struct VertexInput {
@@ -40,9 +40,6 @@ fn vs_main(
     return out;
 }
 
-@group(0) @binding(0)
-var<uniform> uniform_color: vec3<f32>;
-
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var alpha: f32 = 0.0;
@@ -51,5 +48,5 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     if(modified_tex_coords.x * modified_tex_coords.x + modified_tex_coords.y * modified_tex_coords.y < radius_squared) {
         alpha = 1.0;
     }
-    return vec4(uniform_color, alpha);
+    return vec4(0.0, 0.0, 1.0, alpha);
 }
