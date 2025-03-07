@@ -3,7 +3,7 @@ use std::sync::Arc;
 use cfg_if::cfg_if;
 use pollster::block_on;
 use winit::{application::ApplicationHandler, event::{ElementState, KeyEvent, WindowEvent}, event_loop::{ActiveEventLoop, ControlFlow, EventLoop}, keyboard::{KeyCode, PhysicalKey}, window::{Window, WindowId}};
-use xenofrost_macros::get_resource_id;
+use xenofrost_macros::{get_resource_id, query_resource};
 
 use crate::core::{input_manager::InputManager, render_engine::RenderEngine, world::{World, WorldHandler}};
 
@@ -64,7 +64,8 @@ impl ApplicationHandler for Engine {
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, window_id: WindowId, event: WindowEvent) {
-        let input_manager = self.world.query_resource::<InputManager>(get_resource_id!(InputManager)).unwrap();
+        let world = &mut self.world;
+        let input_manager = query_resource!(world, InputManager).unwrap();
         //TODO This could potentially be added as a system instead
         input_manager.data_mut().process_input(&event);
 

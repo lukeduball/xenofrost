@@ -1,11 +1,10 @@
 use std::mem::size_of;
 
 use glam::{Mat4, Vec3};
-use xenofrost_macros::get_resource_id;
+use xenofrost_macros::query_resource;
 use xenofrost_macros::{Component, Resource};
 
 use crate::core::world::component::Component;
-use crate::core::input_manager::InputManager;
 use crate::core::world::resource::ResourceHandle;
 use crate::core::world::resource::Resource;
 use crate::core::world::World;
@@ -96,8 +95,8 @@ pub struct Camera {
 
 impl Camera {
     pub fn new(name: &str, projection: CameraProjection, world: &mut World) -> Self {
-        let render_engine = world.query_resource::<RenderEngine>(get_resource_id!(RenderEngine)).unwrap();
-        let camera_bind_group_layout = world.query_resource::<CameraBindGroupLayout>(get_resource_id!(CameraBindGroupLayout)).unwrap();
+        let render_engine = query_resource!(world, RenderEngine).unwrap();
+        let camera_bind_group_layout = query_resource!(world, CameraBindGroupLayout).unwrap();
 
         let uniform_buffer = render_engine.data().device.create_buffer(&wgpu::BufferDescriptor { 
             label: Some((String::from(name) + "_buffer").as_str()), 

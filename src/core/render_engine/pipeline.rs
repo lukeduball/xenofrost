@@ -1,4 +1,4 @@
-use xenofrost_macros::{get_resource_id, Resource};
+use xenofrost_macros::{query_resource, Resource};
 
 use crate::core::world::{resource::Resource, World};
 
@@ -12,8 +12,8 @@ pub struct Pipeline2D {
 
 impl Pipeline2D {
     pub fn new(world: &mut World) -> Self {
-        let render_engine = world.query_resource::<RenderEngine>(get_resource_id!(RenderEngine)).unwrap();
-        let camera_bind_group_layout = world.query_resource::<CameraBindGroupLayout>(get_resource_id!(CameraBindGroupLayout)).unwrap();
+        let render_engine = query_resource!(world, RenderEngine).unwrap();
+        let camera_bind_group_layout = query_resource!(world, CameraBindGroupLayout).unwrap();
 
         let render_pipeline_layout = render_engine.data().device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Pipeline2D Layout"),

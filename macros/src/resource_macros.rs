@@ -1,8 +1,9 @@
 use std::sync::atomic::{AtomicU64, Ordering};
-use quote::quote;
+use quote::{quote, ToTokens};
 
 use proc_macro::TokenStream;
-use syn::parse_macro_input;
+use syn::{parse::Parse, parse_macro_input, Token};
+use proc_macro2::TokenStream as TokenStream2;
 
 static RESOURCE_ID_COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -30,6 +31,47 @@ pub fn impl_get_resource_id_macro(input: TokenStream) -> TokenStream {
 
     let result = quote! {
         <#type_result>::RESOURCE_ID
+    };
+
+    TokenStream::from(result)
+}
+
+struct ResourceQuery {
+    world: syn::Ident,
+    resource_type: syn::Type
+}
+
+impl Parse for ResourceQuery {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let world = input.parse()?;
+        _ = input.parse::<Token![,]>();
+        let resource_type = input.parse()?;
+        
+        Ok(Self {
+            world,
+            resource_type
+        })
+    }
+}
+
+impl ToTokens for ResourceQuery {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        let world = &self.world;
+        let resource_type = &self.resource_type;
+
+        let result = quote! {
+            #world.query_resource::<#resource_type>(<#resource_type>::RESOURCE_ID)
+        };
+
+        tokens.extend(result);
+    }
+}
+
+pub fn impl_query_resource(input: TokenStream) -> TokenStream {
+    let resource_query = parse_macro_input!(input as ResourceQuery);
+
+    let result = quote! {
+        #resource_query
     };
 
     TokenStream::from(result)

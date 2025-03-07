@@ -2,10 +2,10 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 use component::Component;
 use glam::{Mat4, Vec2, Vec3};
 use resource::{Resource, ResourceHandle};
-use wgpu::{util::{BufferInitDescriptor, DeviceExt}, BufferUsages};
-use xenofrost_macros::{get_resource_id, world_query, Component};
+use wgpu::{util::DeviceExt, BufferUsages};
+use xenofrost_macros::{query_resource, world_query, Component};
 
-use super::{input_manager::{self, InputManager}, render_engine::{camera::{Camera, CameraBindGroupLayout, CameraProjection, CameraUniform, OrthographicProjection}, mesh::QuadMesh, pipeline::Pipeline2D, AspectRatio, DrawMesh, InstanceRaw, RenderCircle, RenderCircleInstances, RenderEngine}};
+use super::{input_manager::InputManager, render_engine::{camera::{Camera, CameraBindGroupLayout, CameraProjection, OrthographicProjection}, mesh::QuadMesh, pipeline::Pipeline2D, AspectRatio, DrawMesh, InstanceRaw, RenderCircle, RenderCircleInstances, RenderEngine}};
 
 pub mod component;
 pub mod resource;
@@ -44,7 +44,7 @@ impl WorldHandler {
     }
 
     pub fn initialize(&mut self, world: &mut World) {
-        let render_engine = world.query_resource::<RenderEngine>(get_resource_id!(RenderEngine)).unwrap();
+        let render_engine = query_resource!(world, RenderEngine).unwrap();
 
         self.add_system(Box::new(camera_controller_system));
         self.add_prepare_system(Box::new(camera_prepare_system));
@@ -61,7 +61,7 @@ impl WorldHandler {
         world.add_resource(pipeline2d);
         world.add_resource(RenderCircleInstances::new(&render_engine.data().device));
 
-        let aspect_ratio = world.query_resource::<AspectRatio>(get_resource_id!(AspectRatio)).unwrap();
+        let aspect_ratio = query_resource!(world, AspectRatio).unwrap();
 
         let camera_entity = world.spawn_entity();
         world.add_component_to_entity(camera_entity, Transform2D {
@@ -116,8 +116,8 @@ impl WorldHandler {
     }
 
     pub fn resize(&self, new_width: u32, new_height: u32, world: &mut World) {
-        let render_engine = world.query_resource::<RenderEngine>(get_resource_id!(RenderEngine)).unwrap();
-        let aspect_ratio = world.query_resource::<AspectRatio>(get_resource_id!(AspectRatio)).unwrap();
+        let render_engine = query_resource!(world, RenderEngine).unwrap();
+        let aspect_ratio = query_resource!(world, AspectRatio).unwrap();
 
         if new_width > 0 && new_height > 0 {
             render_engine.data_mut().config.width = new_width;
@@ -188,7 +188,7 @@ impl World {
             Some(resource) => {
                 Some(ResourceHandle::new(Rc::clone(&resource)))
             },
-            None => None
+            _ => None
         }
     }
 
@@ -245,7 +245,7 @@ impl World {
 fn camera_controller_system(world: &mut World) {
     let speed = 0.01;
 
-    let input_manager_handle = world.query_resource::<InputManager>(get_resource_id!(InputManager)).unwrap();
+    let input_manager_handle = query_resource!(world, InputManager).unwrap();
     let camera_query = world_query!(mut Transform2D, Camera);
     let camera_query_invoke = camera_query(world);
     let (_, mut transform2d, _) = camera_query_invoke.iter().next().unwrap();
@@ -271,7 +271,7 @@ fn camera_controller_system(world: &mut World) {
 }
 
 fn camera_prepare_system(world: &mut World) {
-    let render_engine = world.query_resource::<RenderEngine>(get_resource_id!(RenderEngine)).unwrap();
+    let render_engine = query_resource!(world, RenderEngine).unwrap();
 
     let camera_query = world_query!(Transform2D, mut Camera);
     if let Some((_, transform2d, mut camera)) = camera_query(world).iter().next() {
@@ -284,8 +284,8 @@ fn camera_prepare_system(world: &mut World) {
 }
 
 fn circle_prepare_system(world: &mut World) {
-    let render_engine = world.query_resource::<RenderEngine>(get_resource_id!(RenderEngine)).unwrap();
-    let circle_instances = world.query_resource::<RenderCircleInstances>(get_resource_id!(RenderCircleInstances)).unwrap();
+    let render_engine = query_resource!(world, RenderEngine).unwrap();
+    let circle_instances = query_resource!(world, RenderCircleInstances).unwrap();
     let circles_query = world_query!(Transform2D, RenderCircle);
 
     circle_instances.data_mut().instances.clear();
@@ -313,10 +313,10 @@ fn circle_prepare_system(world: &mut World) {
 }
 
 fn circles_render_system(world: &mut World) -> Result<(), wgpu::SurfaceError> {
-    let render_engine = world.query_resource::<RenderEngine>(get_resource_id!(RenderEngine)).unwrap();
-    let pipeline2d = world.query_resource::<Pipeline2D>(get_resource_id!(Pipeline2D)).unwrap();
-    let circle_instances = world.query_resource::<RenderCircleInstances>(get_resource_id!(RenderCircleInstances)).unwrap();
-    let quad_mesh = world.query_resource::<QuadMesh>(get_resource_id!(QuadMesh)).unwrap();
+    let render_engine = query_resource!(world, RenderEngine).unwrap();
+    let pipeline2d = query_resource!(world, Pipeline2D).unwrap();
+    let circle_instances = query_resource!(world, RenderCircleInstances).unwrap();
+    let quad_mesh = query_resource!(world, QuadMesh).unwrap();
     let output = render_engine.data().surface.get_current_texture()?;
     let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
@@ -363,7 +363,7 @@ fn circles_render_system(world: &mut World) -> Result<(), wgpu::SurfaceError> {
 #[cfg(test)]
 mod tests {
     use glam::Vec3;
-    use xenofrost_macros::{get_resource_id, world_query, Component, Resource};
+    use xenofrost_macros::{query_resource, world_query, Component, Resource};
 
     use super::{component::Component, World, resource::Resource};
 
@@ -386,7 +386,7 @@ mod tests {
         let mut world = World::new();
         world.add_resource(ResourceTest(543));
 
-        let resource_handle = world.query_resource::<ResourceTest>(get_resource_id!(ResourceTest)).unwrap();
+        let resource_handle = query_resource!(world, ResourceTest).unwrap();
 
         let entity1 = world.spawn_entity();
         world.add_component_to_entity(entity1, Test1(1));
