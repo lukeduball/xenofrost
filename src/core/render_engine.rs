@@ -83,6 +83,11 @@ pub struct AspectRatio {
 }
 
 #[derive(Resource)]
+pub struct PrimaryRenderPass<'a> {
+    pub render_pass: Option<wgpu::RenderPass<'a>>
+}
+
+#[derive(Resource)]
 pub struct RenderEngine<'a> {
     pub surface: wgpu::Surface<'a>,
     pub device: wgpu::Device,

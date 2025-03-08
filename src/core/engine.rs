@@ -1,101 +1,14 @@
-use std::sync::Arc;
-
 use cfg_if::cfg_if;
-use pollster::block_on;
-use winit::{application::ApplicationHandler, event::{ElementState, KeyEvent, WindowEvent}, event_loop::{ActiveEventLoop, ControlFlow, EventLoop}, keyboard::{KeyCode, PhysicalKey}, window::{Window, WindowId}};
-use xenofrost_macros::{get_resource_id, query_resource};
+use glam::{Mat4, Vec2, Vec3};
+use wgpu::{util::DeviceExt, BufferUsages};
+use xenofrost_macros::{query_resource, world_query};
 
-use crate::core::{input_manager::InputManager, render_engine::RenderEngine, world::{World, WorldHandler}};
+use crate::core::{app::App, render_engine::{camera::Camera, RenderCircle}, world::Transform2D};
 
-#[cfg(target_arch="wasm32")]
-use wasm_bindgen::prelude::*;
-
-use super::render_engine::AspectRatio;
-
-
-struct Engine {
-    window: Option<Arc<Window>>,
-    world_handler: WorldHandler,
-    world: World,
-}
-
-impl Engine {
-    fn new() -> Self {
-        Self {
-            window: None,
-            world_handler: WorldHandler::new(),
-            world: World::new(),
-        }
-    }
-}
-
-impl ApplicationHandler for Engine {
-    fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        let window = event_loop.create_window(Window::default_attributes()).unwrap();
-        let size = window.inner_size();
-
-        self.world.add_resource(AspectRatio {
-            aspect_ratio: size.width as f32 / size.height as f32
-        });
-
-        let arc_window = Arc::new(window);
-        self.world.add_resource(block_on(RenderEngine::new(Arc::clone(&arc_window), size.width, size.height)));
-        self.world.add_resource(InputManager::new());
-        self.world_handler.initialize(&mut self.world);
-
-        self.window = Some(arc_window);
-
-        #[cfg(target_arch="wasm32")]
-        {
-            use winit::dpi::PhysicalSize;
-            let _ = window.request_inner_size(PhysicalSize::new(450, 400));
-    
-            use winit::platform::web::WindowExtWebSys;
-            web_sys::window()
-                .and_then(|win| win.document())
-                .and_then(|doc| {
-                    let dst = doc.get_element_by_id("wasm_fluid_2d")?;
-                    let canvas = web_sys::Element::from(window.canvas()?);
-                    dst.append_child(&canvas).ok()?;
-                    Some(())
-            })
-            .expect("Could not append canvas to document body!");
-        }
-    }
-
-    fn window_event(&mut self, event_loop: &ActiveEventLoop, window_id: WindowId, event: WindowEvent) {
-        let world = &mut self.world;
-        let input_manager = query_resource!(world, InputManager).unwrap();
-        //TODO This could potentially be added as a system instead
-        input_manager.data_mut().process_input(&event);
-
-        self.world_handler.update(&mut self.world);
-
-        match event {
-            WindowEvent::CloseRequested | WindowEvent::KeyboardInput { 
-                event: KeyEvent {
-                    state: ElementState::Pressed,
-                    physical_key: PhysicalKey::Code(KeyCode::Escape),
-                    ..
-                }, 
-                .. 
-            } => event_loop.exit(),
-            WindowEvent::Resized(physical_size) => {
-                self.world_handler.resize(physical_size.width, physical_size.height, &mut self.world);
-            },
-            WindowEvent::RedrawRequested => {
-                if !self.world_handler.render(&mut self.world) {
-                    event_loop.exit();
-                }
-                self.window.as_ref().unwrap().request_redraw();
-            }
-            _ => ()
-        }
-    }
-}
+use super::{input_manager::InputManager, render_engine::{camera::{CameraBindGroupLayout, CameraProjection, OrthographicProjection}, mesh::QuadMesh, pipeline::Pipeline2D, AspectRatio, DrawMesh, InstanceRaw, PrimaryRenderPass, RenderCircleInstances, RenderEngine}, world::World};
 
 #[cfg_attr(target_arch="wasm32", wasm_bindgen(start))]
-pub async fn run() {
+pub fn run() {
     cfg_if!(
         if #[cfg(target_arch = "wasm32")] {
             std::panic::set_hook(Box::new(console_error_panic_hook::hook));
@@ -106,9 +19,141 @@ pub async fn run() {
         }
     );
 
-    let event_loop = EventLoop::new().unwrap();
-    event_loop.set_control_flow(ControlFlow::Poll);
+    let mut app = App::new();
+    app.add_startup_system(Box::new(startup_system));
+    app.add_update_system(Box::new(camera_controller_system));
+    app.add_prepare_system(Box::new(camera_prepare_system));
+    app.add_prepare_system(Box::new(circle_prepare_system));
+    app.add_render_system(Box::new(circles_render_system));
 
-    let mut engine = Engine::new();
-    _ = event_loop.run_app(&mut engine);
+    app.run();
+}
+
+fn startup_system(world: &mut World) {
+    let render_engine = query_resource!(world, RenderEngine).unwrap();
+
+    let quad_mesh = QuadMesh::new(&render_engine.data().device);
+    world.add_resource(quad_mesh);
+
+    let camera_bind_group_layout = CameraBindGroupLayout::new(&render_engine);
+    world.add_resource(camera_bind_group_layout);
+    
+    let pipeline2d = Pipeline2D::new(world);
+    world.add_resource(pipeline2d);
+    world.add_resource(RenderCircleInstances::new(&render_engine.data().device));
+
+    let aspect_ratio = query_resource!(world, AspectRatio).unwrap();
+
+    let camera_entity = world.spawn_entity();
+    world.add_component_to_entity(camera_entity, Transform2D {
+        translation: Vec2::new(0.0, 0.0),
+        scale: Vec2::new(1.0, 1.0),
+        rotation: 0.0
+    });
+    let camera_component = Camera::new(
+        "primary_camera", 
+        CameraProjection::Orthographic(OrthographicProjection {
+            width: 10.0,
+            height: 10.0,
+            near_clip: 0.1,
+            far_clip: 1000.0,
+            aspect_ratio: aspect_ratio.data().aspect_ratio
+        }), 
+        world
+    );
+    world.add_component_to_entity(camera_entity, camera_component);
+
+    let circle = world.spawn_entity();
+    world.add_component_to_entity(circle, RenderCircle);
+    world.add_component_to_entity(circle, Transform2D {
+        translation: Vec2::new(0.0, 0.0),
+        scale: Vec2::new(1.0, 1.0),
+        rotation: 0.0
+    });
+}
+
+fn camera_controller_system(world: &mut World) {
+    let speed = 0.01;
+
+    let input_manager_handle = query_resource!(world, InputManager).unwrap();
+    let camera_query = world_query!(mut Transform2D, Camera);
+    let camera_query_invoke = camera_query(world);
+    let (_, mut transform2d, _) = camera_query_invoke.iter().next().unwrap();
+
+    let input_manager = input_manager_handle.data();
+    let left_key_state = input_manager.get_key_state("left").unwrap();
+    let right_key_state = input_manager.get_key_state("right").unwrap();
+    let up_key_state = input_manager.get_key_state("up").unwrap();
+    let down_key_state = input_manager.get_key_state("down").unwrap();
+
+    if left_key_state.get_is_down() {
+        transform2d.translation.x -= speed;
+    }
+    if right_key_state.get_is_down() {
+        transform2d.translation.x += speed;
+    }
+    if up_key_state.get_is_down() {
+        transform2d.translation.y += speed;
+    }
+    if down_key_state.get_is_down() {
+        transform2d.translation.y -= speed;
+    }
+}
+
+fn camera_prepare_system(world: &mut World) {
+    let render_engine = query_resource!(world, RenderEngine).unwrap();
+
+    let camera_query = world_query!(Transform2D, mut Camera);
+    if let Some((_, transform2d, mut camera)) = camera_query(world).iter().next() {
+        camera.update_uniform_buffer(
+            Vec3::new(transform2d.translation.x, transform2d.translation.y, -1.0),
+            Vec3::new(0.0, 0.0, 1.0),
+            &render_engine.data().queue
+        );
+    }
+}
+
+fn circle_prepare_system(world: &mut World) {
+    let render_engine = query_resource!(world, RenderEngine).unwrap();
+    let circle_instances = query_resource!(world, RenderCircleInstances).unwrap();
+    let circles_query = world_query!(Transform2D, RenderCircle);
+
+    circle_instances.data_mut().instances.clear();
+    for (_, tranform2d, _) in circles_query(world).iter() {
+        let raw_instance = InstanceRaw {
+            model: Mat4::from_translation(Vec3::new(tranform2d.translation.x, tranform2d.translation.y, 0.0)).to_cols_array_2d()
+        };
+        circle_instances.data_mut().instances.push(raw_instance);
+    }
+
+    if circle_instances.data().instances.len() != circle_instances.data().prev_size {
+        circle_instances.data_mut().instances_buffer.destroy();
+        let new_instances_buffer = render_engine.data().device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Circle Instance Buffer"),
+            contents: bytemuck::cast_slice(&circle_instances.data().instances),
+            usage: BufferUsages::VERTEX
+        });
+        circle_instances.data_mut().instances_buffer = new_instances_buffer;
+    }
+    else {
+        render_engine.data().queue.write_buffer(&circle_instances.data().instances_buffer, 0, bytemuck::cast_slice(&circle_instances.data().instances));
+    }
+
+
+}
+
+fn circles_render_system(world: &mut World) {
+    let pipeline2d = query_resource!(world, Pipeline2D).unwrap();
+    let circle_instances = query_resource!(world, RenderCircleInstances).unwrap();
+    let quad_mesh_handle = query_resource!(world, QuadMesh).unwrap();
+    let quad_mesh = quad_mesh_handle.data();
+    let primary_render_pass = query_resource!(world, PrimaryRenderPass).unwrap();
+
+    let camera_query = world_query!(Camera);
+    let camera_query_invoke = camera_query(world);
+    let (_, camera) = camera_query_invoke.iter().next().unwrap();
+
+    primary_render_pass.data_mut().render_pass.as_mut().unwrap().set_pipeline(&pipeline2d.data().pipeline);
+    primary_render_pass.data_mut().render_pass.as_mut().unwrap().set_vertex_buffer(1, circle_instances.data().instances_buffer.slice(..));
+    primary_render_pass.data_mut().render_pass.as_mut().unwrap().draw_mesh_instanced(&quad_mesh.mesh, 0..1 as u32, &camera.camera_bind_group);
 }
