@@ -52,11 +52,22 @@ impl CameraBindGroupLayout {
     }
 }
 
+const UP_DIRECTION_VECTOR: Vec3 = Vec3::new(0.0, 1.0, 0.0);
+
 pub struct PerspectiveProjection {
     field_of_view: f32,
     aspect_ratio: f32,
     near_clip: f32,
     far_clip: f32
+}
+
+impl PerspectiveProjection {
+    pub fn build_view_projection_matrix(&self, position: Vec3, direction: Vec3) -> Mat4 {
+        let view = Mat4::look_to_lh(position, direction, UP_DIRECTION_VECTOR);
+        let projection = Mat4::perspective_lh(self.field_of_view.to_radians(), self.aspect_ratio, self.near_clip, self.far_clip);
+
+        projection * view
+    }
 }
 
 pub struct OrthographicProjection {
@@ -67,8 +78,6 @@ pub struct OrthographicProjection {
     pub aspect_ratio: f32,
 }
 
-const UP_DIRECTION_VECTOR: Vec3 = Vec3::new(0.0, 1.0, 0.0);
-
 impl OrthographicProjection {
     pub fn build_view_projection_matrix(&self, position: Vec3, direction: Vec3) -> Mat4 {
         let view = Mat4::look_to_lh(position, direction, UP_DIRECTION_VECTOR);
@@ -77,7 +86,7 @@ impl OrthographicProjection {
         let half_height = self.height / 2.0;
         let projection = Mat4::orthographic_lh(-half_width, half_width, -half_height, half_height, self.near_clip, self.far_clip);
 
-        return projection * view;
+        projection * view
     }
 }
 
@@ -134,7 +143,7 @@ impl Camera {
         let mut camera_uniform = CameraUniform::new();
 
         match &mut self.projection {
-            CameraProjection::Perspective(perspective_projection) => todo!(),
+            CameraProjection::Perspective(perspective_projection) => camera_uniform.view_proj = perspective_projection.build_view_projection_matrix(position, direction).to_cols_array_2d(),
             CameraProjection::Orthographic(orthographic_projection) => camera_uniform.view_proj = orthographic_projection.build_view_projection_matrix(position, direction).to_cols_array_2d(),
         }
 

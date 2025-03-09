@@ -1,11 +1,11 @@
 use cfg_if::cfg_if;
 use glam::{Mat4, Vec2, Vec3};
 use wgpu::{util::DeviceExt, BufferUsages};
-use xenofrost_macros::{query_resource, world_query};
+use xenofrost_macros::{query_resource, world_query, Component, Resource};
 
-use crate::core::{app::App, render_engine::{camera::Camera, RenderCircle}, world::Transform2D};
+use crate::core::{app::App, render_engine::camera::Camera, world::Transform2D};
 
-use super::{input_manager::InputManager, render_engine::{camera::{CameraBindGroupLayout, CameraProjection, OrthographicProjection}, mesh::QuadMesh, pipeline::Pipeline2D, AspectRatio, DrawMesh, InstanceRaw, PrimaryRenderPass, RenderCircleInstances, RenderEngine}, world::World};
+use super::{input_manager::InputManager, render_engine::{camera::{CameraBindGroupLayout, CameraProjection, OrthographicProjection}, mesh::QuadMesh, pipeline::Pipeline2D, AspectRatio, DrawMesh, InstanceRaw, PrimaryRenderPass, RenderEngine}, world::{component::Component, resource::Resource, World}};
 
 #[cfg_attr(target_arch="wasm32", wasm_bindgen(start))]
 pub fn run() {
@@ -28,6 +28,36 @@ pub fn run() {
 
     app.run();
 }
+
+#[derive(Resource)]
+pub struct RenderCircleInstances {
+    pub instances: Vec<InstanceRaw>,
+    pub prev_size: usize,
+    pub instances_buffer: wgpu::Buffer,
+}
+
+impl RenderCircleInstances {
+    pub fn new(device: &wgpu::Device) -> Self {
+        let instances = Vec::new();
+        let instances_buffer = device.create_buffer(&wgpu::BufferDescriptor { 
+            label: Some("Circle Instances"), 
+            size: 1, 
+            usage: wgpu::BufferUsages::VERTEX, 
+            mapped_at_creation: false 
+        });
+
+        let prev_size = instances.len();
+
+        Self {
+            instances,
+            prev_size,
+            instances_buffer
+        }
+    }
+}
+
+#[derive(Component)]
+pub struct RenderCircle;
 
 fn startup_system(world: &mut World) {
     let render_engine = query_resource!(world, RenderEngine).unwrap();
