@@ -62,8 +62,8 @@ pub struct PrimaryRenderPass<'a> {
 }
 
 #[derive(Resource)]
-pub struct RenderEngine<'a> {
-    pub surface: wgpu::Surface<'a>,
+pub struct RenderEngine {
+    pub surface: wgpu::Surface<'static>,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     pub config: wgpu::SurfaceConfiguration,
@@ -71,8 +71,8 @@ pub struct RenderEngine<'a> {
     window_height: u32
 }
 
-impl<'a> RenderEngine<'a> {
-    pub async fn new(window: Arc<Window>, world: &mut World, width: u32, height: u32) -> RenderEngine<'a> {
+impl RenderEngine {
+    pub async fn new(window: Arc<Window>, width: u32, height: u32) -> RenderEngine {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             #[cfg(not(target_arch="wasm32"))]
             backends: wgpu::Backends::PRIMARY,
@@ -115,8 +115,8 @@ impl<'a> RenderEngine<'a> {
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,
-            width: 450,
-            height: 400,
+            width: width,
+            height: height,
             present_mode: surface_caps.present_modes[0],
             alpha_mode: surface_caps.alpha_modes[0],
             view_formats: vec![],
@@ -124,13 +124,6 @@ impl<'a> RenderEngine<'a> {
         };
 
         surface.configure(&device, &config);
-
-        //Add any applicable shared resources related to the render engine
-        world.add_resource(PrimaryRenderPass {render_pass: None} );
-
-        world.add_resource(AspectRatio {
-            aspect_ratio: width as f32 / height as f32
-        });
 
         RenderEngine {
             surface,
@@ -140,6 +133,15 @@ impl<'a> RenderEngine<'a> {
             window_width: width,
             window_height: height
         }
+    }
+
+    pub fn initialize_additional_resources(&self, world: &mut World) {
+        //Add any applicable shared resources related to the render engine
+        world.add_resource(PrimaryRenderPass {render_pass: None} );
+
+        world.add_resource(AspectRatio {
+            aspect_ratio: self.window_width as f32 / self.window_height as f32
+        });
     }
 
     pub fn render_frame_setup(&self, world: &mut World) -> Result<(wgpu::SurfaceTexture, wgpu::CommandEncoder), wgpu::SurfaceError> {

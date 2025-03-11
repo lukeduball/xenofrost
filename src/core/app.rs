@@ -1,12 +1,9 @@
 use std::sync::Arc;
 
-use winit::{application::ApplicationHandler, event::{ElementState, KeyEvent, WindowEvent}, event_loop::{ActiveEventLoop, EventLoop}, keyboard::{KeyCode, PhysicalKey}, window::WindowId};
+use winit::{application::ApplicationHandler, event::{ElementState, KeyEvent, WindowEvent}, event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy}, keyboard::{KeyCode, PhysicalKey}, window::WindowId};
 use xenofrost_macros::query_resource;
 
 use super::{input_manager::InputManager, render_engine::RenderEngine, world::World};
-
-#[cfg(target_arch="wasm32")]
-use wasm_bindgen::prelude::*;
 
 pub struct App {
     window: Option<Arc<winit::window::Window>>,
@@ -33,10 +30,10 @@ impl App {
     }
 
     pub fn run(&mut self) {
-        let event_loop = EventLoop::new().unwrap();
+        let event_loop = EventLoop::with_user_event().build().unwrap();
         event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
 
-        let mut app_runner = AppRunner::new(self);
+        let mut app_runner = AppRunner::new(self, &event_loop);
         _ = event_loop.run_app(&mut app_runner);
     }
 
@@ -120,35 +117,40 @@ impl App {
 
 }
 
+//Used by wasm32 build so warning was turned off
+#[allow(dead_code)]
+enum EngineEvent {
+    CreateGraphicsEvent(RenderEngine)
+}
+
+//Event loop proxy is used by wasm32 so warning was turned off
+#[allow(dead_code)]
 struct AppRunner<'a> {
-    app: &'a mut App
+    app: &'a mut App,
+    event_loop_proxy: Option<EventLoopProxy<EngineEvent>>
 }
 
 impl<'a> AppRunner<'a> {
-    fn new(app: &'a mut App) -> Self {
+    fn new(app: &'a mut App, event_loop: &EventLoop<EngineEvent>) -> Self {
         Self {
-            app
+            app,
+            event_loop_proxy: Some(event_loop.create_proxy())
         }
     }
 }
 
-impl<'a> ApplicationHandler for AppRunner<'a> {
+impl<'a> ApplicationHandler<EngineEvent> for AppRunner<'a> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let window = event_loop.create_window(winit::window::Window::default_attributes()).unwrap();
-        let size = window.inner_size();
-    
-        let arc_window = Arc::new(window);
-
-        let render_engine = pollster::block_on(RenderEngine::new(Arc::clone(&arc_window), &mut self.app.world, size.width, size.height));
-        self.app.world.add_resource(render_engine);
-        self.app.world.add_resource(InputManager::new());
-
-        self.app.window = Some(arc_window);
-
+        //wasm32 mutates this variable to statically set the window size
+        #[allow(unused_mut)]
+        let mut size = window.inner_size();
         #[cfg(target_arch="wasm32")]
         {
             use winit::dpi::PhysicalSize;
-            let _ = window.request_inner_size(PhysicalSize::new(450, 400));
+            size.width = 1280;
+            size.height = 720;
+            _ = window.request_inner_size(PhysicalSize::new(size.width, size.height));
     
             use winit::platform::web::WindowExtWebSys;
             web_sys::window()
@@ -161,10 +163,40 @@ impl<'a> ApplicationHandler for AppRunner<'a> {
             })
             .expect("Could not append canvas to document body!");
         }
+    
+        let arc_window = Arc::new(window);
+
+        self.app.world.add_resource(InputManager::new());
+
+        self.app.window = Some(Arc::clone(&arc_window));
+
+        #[cfg(target_arch="wasm32")]
+        {
+            let event_loop_proxy = self.event_loop_proxy.take();
+            let render_engine_fut = RenderEngine::new(Arc::clone(&arc_window), size.width, size.height);
+            wasm_bindgen_futures::spawn_local(async move {
+                let render_engine = render_engine_fut.await;
+                assert!(event_loop_proxy.unwrap().send_event(EngineEvent::CreateGraphicsEvent(render_engine)).is_ok());
+            });
+        }
+
+        #[cfg(not(target_arch="wasm32"))]
+        {
+            let render_engine = pollster::block_on(RenderEngine::new(arc_window, size.width, size.height));
+            render_engine.initialize_additional_resources(&mut self.app.world);
+            self.app.world.add_resource(render_engine);
+        }
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _window_id: WindowId, event: WindowEvent) {
         let world = &mut self.app.world;
+
+        let render_engine = query_resource!(world, RenderEngine);
+        if let None = render_engine {
+            //Wait until the graphics have been created
+            return;
+        }
+
         let input_manager = query_resource!(world, InputManager).unwrap();
         input_manager.data_mut().process_input(&event);
 
@@ -180,7 +212,9 @@ impl<'a> ApplicationHandler for AppRunner<'a> {
                 .. 
             } => event_loop.exit(),
             WindowEvent::Resized(physical_size) => {
-                self.app.resize(physical_size.width, physical_size.height);
+                #[cfg(not(target_arch="wasm32"))] {
+                    self.app.resize(physical_size.width, physical_size.height);
+                }
             },
             WindowEvent::RedrawRequested => {
                 if !self.app.render() {
@@ -189,6 +223,15 @@ impl<'a> ApplicationHandler for AppRunner<'a> {
                 self.app.window.as_ref().unwrap().request_redraw();
             }
             _ => ()
+        }
+    }
+
+    fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: EngineEvent) {
+        match event {
+            EngineEvent::CreateGraphicsEvent(render_engine) => {
+                render_engine.initialize_additional_resources(&mut self.app.world);
+                self.app.world.add_resource(render_engine);
+            }
         }
     }
 }

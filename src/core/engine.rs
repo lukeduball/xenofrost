@@ -7,6 +7,9 @@ use crate::core::{app::App, render_engine::camera::Camera, world::Transform2D};
 
 use super::{input_manager::InputManager, render_engine::{camera::{CameraBindGroupLayout, CameraProjection, OrthographicProjection}, mesh::QuadMesh, pipeline::Pipeline2D, AspectRatio, DrawMesh, InstanceRaw, PrimaryRenderPass, RenderEngine}, world::{component::Component, resource::Resource, World}};
 
+#[cfg(target_arch="wasm32")]
+use wasm_bindgen::prelude::*;
+
 #[cfg_attr(target_arch="wasm32", wasm_bindgen(start))]
 pub fn run() {
     cfg_if!(
