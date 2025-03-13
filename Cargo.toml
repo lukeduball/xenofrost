@@ -1,14 +1,12 @@
 [package]
 name = "xenofrost"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 xenofrost_macros = { path = "macros", version = "0.1.0" }
 cfg-if = "1"
 winit = {version = "0.30", features = ["rwh_05"]}
-env_logger = "0.10"
-log = "0.4"
 wgpu = "22.0"
 bytemuck = {version = "1.16", features = ["derive"] }
 glam = "0.28"

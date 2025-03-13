@@ -1,13 +1,12 @@
 use std::mem::size_of;
 
 use glam::{Mat4, Vec3};
-use xenofrost_macros::query_resource;
-use xenofrost_macros::{Component, Resource};
 
 use crate::core::world::component::Component;
 use crate::core::world::resource::ResourceHandle;
 use crate::core::world::resource::Resource;
 use crate::core::world::World;
+use crate::core::world::query_resource;
 
 use super::RenderEngine;
 

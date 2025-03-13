@@ -32,8 +32,7 @@ pub trait Resource {
 #[cfg(test)]
 mod tests {
     use std::{cell::RefCell, rc::Rc};
-
-    use xenofrost_macros::Resource;
+    
     use super::{Resource, ResourceHandle};
 
 
@@ -80,3 +79,5 @@ mod tests {
         assert_eq!(resource_data.0, 243);
     }
 }
+
+pub use xenofrost_macros::Resource;

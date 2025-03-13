@@ -2,7 +2,8 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 use component::Component;
 use glam::Vec2;
 use resource::{Resource, ResourceHandle};
-use xenofrost_macros::Component;
+
+pub use xenofrost_macros::{query_resource, world_query};
 
 pub mod component;
 pub mod resource;
@@ -120,9 +121,11 @@ impl World {
 #[cfg(test)]
 mod tests {
     use glam::Vec3;
-    use xenofrost_macros::{query_resource, world_query, Component, Resource};
+    use super::{query_resource, world_query};
+    use super::{component::Component, resource::Resource, World};
 
-    use super::{component::Component, World, resource::Resource};
+    //Required to allow query_macro to resolve types in this crate and external crates
+    use crate as xenofrost;
 
     #[derive(Component)]
     struct Test1(u64);

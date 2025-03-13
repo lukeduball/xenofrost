@@ -4,10 +4,12 @@ use camera::Camera;
 use glam::Vec3;
 use mesh::Mesh;
 use winit::window::Window;
-use xenofrost_macros::{query_resource, world_query, Resource};
-use crate::core::world::{resource::Resource, Transform2D};
+use crate::core::world::{resource::Resource, Transform2D, query_resource, world_query};
 
 use super::world::World;
+
+//Required to allow query_macro to resolve types in this crate and external crates
+use crate as xenofrost;
 
 pub mod camera;
 pub mod texture;

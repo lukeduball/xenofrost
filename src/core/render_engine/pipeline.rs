@@ -1,6 +1,4 @@
-use xenofrost_macros::{query_resource, Resource};
-
-use crate::core::world::{resource::Resource, World};
+use crate::core::world::{resource::Resource, World, query_resource};
 
 use super::{camera::CameraBindGroupLayout, mesh::{ModelVertex, Vertex}, InstanceRaw, RenderEngine};
 

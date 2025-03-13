@@ -13,3 +13,5 @@ pub fn component_ref_downcast<T: Component>(reference: Ref<dyn Component>) -> Re
 pub fn component_mut_downcast<T: Component>(reference: RefMut<dyn Component>) -> RefMut<T> {
     RefMut::map(reference, |x| x.as_any_mut().downcast_mut::<T>().unwrap())
 }
+
+pub use xenofrost_macros::Component;

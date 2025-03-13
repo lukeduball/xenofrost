@@ -1,5 +1,4 @@
 use wgpu::util::DeviceExt;
-use xenofrost_macros::Resource;
 
 use crate::core::world::resource::Resource;
 

@@ -14,12 +14,12 @@ pub fn impl_resource_id_macro(ast: &syn::DeriveInput) -> TokenStream {
 
     let gen = quote! {
         impl #impl_generics #name #ty_generics #where_clause {
-            pub const RESOURCE_ID: u64 = #id;
+            pub const RESOURCE_ID: u64 = crate::BASELINE_NUMBER_OF_RESOURCES + #id;
         }
 
         impl #impl_generics Resource for #name #ty_generics #where_clause {
             fn get_resource_id(&self) -> u64 {
-                #id
+                crate::BASELINE_NUMBER_OF_RESOURCES + #id
             }
         }
     };
@@ -72,6 +72,16 @@ pub fn impl_query_resource(input: TokenStream) -> TokenStream {
 
     let result = quote! {
         #resource_query
+    };
+
+    TokenStream::from(result)
+}
+
+pub fn impl_get_number_of_resources(_input: TokenStream) -> TokenStream {
+    let number_of_resources = RESOURCE_ID_COUNTER.load(Ordering::SeqCst);
+
+    let result = quote! {
+        #number_of_resources
     };
 
     TokenStream::from(result)

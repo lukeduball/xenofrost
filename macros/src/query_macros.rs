@@ -89,12 +89,12 @@ impl ToTokens for ComponentCastTokenGen {
 
         let result = if self.component_info.mutable {
             quote! {
-                crate::core::world::component::component_mut_downcast::<#component_type>
+                xenofrost::core::world::component::component_mut_downcast::<#component_type>
             }
         }
         else {
             quote! {
-                crate::core::world::component::component_ref_downcast::<#component_type>
+                xenofrost::core::world::component::component_ref_downcast::<#component_type>
             }
         };
 
@@ -143,10 +143,10 @@ impl ToTokens for QueryResult {
         };
 
         tokens.extend(quote! {
-            | world: &crate::core::world::World | {
+            | world: &xenofrost::core::world::World | {
                 struct QueryResultEntry {
-                    entity: crate::core::world::Entity,
-                    components: [std::rc::Rc<std::cell::RefCell<dyn crate::core::world::component::Component>>; #number_of_types]
+                    entity: xenofrost::core::world::Entity,
+                    components: [std::rc::Rc<std::cell::RefCell<dyn xenofrost::core::world::component::Component>>; #number_of_types]
                 }
     
                 struct QueryResult {
@@ -176,7 +176,7 @@ impl ToTokens for QueryResult {
                 };
 
                 impl<'a> Iterator for QueryResultIterator<'a> {
-                    type Item = (crate::core::world::Entity #(, (#component_types))*);
+                    type Item = (xenofrost::core::world::Entity #(, (#component_types))*);
                     
                     fn next(&mut self) -> Option<Self::Item> {
                         if self.index < self.query_result.entries.len() {
@@ -193,7 +193,7 @@ impl ToTokens for QueryResult {
                     }
                 };
     
-                let mut entities: Vec<crate::core::world::Entity> = Vec::new();
+                let mut entities: Vec<xenofrost::core::world::Entity> = Vec::new();
                 for component_id in #component_ids {
                     entities = world.get_entities_with_component(&entities, component_id);
                 }

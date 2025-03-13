@@ -12,12 +12,12 @@ pub fn impl_component_id_macro(ast: &syn::DeriveInput) -> TokenStream {
 
     let gen = quote! {
         impl #name {
-            pub const COMPONENT_ID: u64 = #id;
+            pub const COMPONENT_ID: u64 = crate::BASELINE_NUMBER_OF_COMPONENTS + #id;
         }
 
         impl Component for #name {
             fn get_component_id(&self) -> u64 {
-                #id
+                crate::BASELINE_NUMBER_OF_COMPONENTS + #id
             }
 
             fn as_any(&self) -> &dyn std::any::Any {
@@ -37,6 +37,16 @@ pub fn impl_get_component_id_macro(input: TokenStream) -> TokenStream {
 
     let result = quote! {
         <#type_result>::COMPONENT_ID
+    };
+
+    TokenStream::from(result)
+}
+
+pub fn impl_get_number_of_components(_input: TokenStream) -> TokenStream {
+    let number_of_components = COMPONENT_ID_COUNTER.load(Ordering::SeqCst);
+
+    let result = quote! {
+        #number_of_components
     };
 
     TokenStream::from(result)

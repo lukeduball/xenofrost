@@ -1,7 +1,7 @@
-use component_macros::{impl_component_id_macro, impl_get_component_id_macro};
+use component_macros::{impl_component_id_macro, impl_get_component_id_macro, impl_get_number_of_components};
 use proc_macro::TokenStream;
 use query_macros::impl_world_query_macro;
-use resource_macros::{impl_get_resource_id_macro, impl_query_resource, impl_resource_id_macro};
+use resource_macros::{impl_get_resource_id_macro, impl_query_resource, impl_resource_id_macro, impl_get_number_of_resources};
 
 extern crate proc_macro;
 
@@ -22,6 +22,11 @@ pub fn get_component_id(input: TokenStream) -> TokenStream {
     impl_get_component_id_macro(input)
 }
 
+#[proc_macro]
+pub fn get_number_of_components(input: TokenStream) -> TokenStream {
+    impl_get_number_of_components(input)
+}
+ 
 #[proc_macro_derive(Resource)]
 pub fn derive_resource_id_macro(input: TokenStream) -> TokenStream {
     let ast = syn::parse(input).unwrap();
@@ -32,6 +37,11 @@ pub fn derive_resource_id_macro(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn get_resource_id(input: TokenStream) -> TokenStream {
     impl_get_resource_id_macro(input)
+}
+
+#[proc_macro]
+pub fn get_number_of_resources(input: TokenStream) -> TokenStream {
+    impl_get_number_of_resources(input)
 }
 
 #[proc_macro]

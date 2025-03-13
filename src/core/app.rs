@@ -5,7 +5,9 @@ use xenofrost_macros::query_resource;
 
 use super::{input_manager::InputManager, render_engine::RenderEngine, world::World};
 
+#[allow(dead_code)]
 pub struct App {
+    app_name: &'static str,
     window: Option<Arc<winit::window::Window>>,
     world: World,
 
@@ -17,8 +19,9 @@ pub struct App {
 }
 
 impl App {
-    pub fn new() -> Self {
+    pub fn new(app_name: &'static str) -> Self {
         Self {
+            app_name,
             window: None,
             world: World::new(),
             startup_systems: Vec::new(),
@@ -156,7 +159,7 @@ impl<'a> ApplicationHandler<EngineEvent> for AppRunner<'a> {
             web_sys::window()
                 .and_then(|win| win.document())
                 .and_then(|doc| {
-                    let dst = doc.get_element_by_id("wasm_fluid_2d")?;
+                    let dst = doc.get_element_by_id(self.app.app_name)?;
                     let canvas = web_sys::Element::from(window.canvas()?);
                     dst.append_child(&canvas).ok()?;
                     Some(())
