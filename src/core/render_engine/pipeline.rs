@@ -1,4 +1,4 @@
-use crate::core::world::{resource::Resource, World, query_resource};
+use crate::core::{utilities::include_str_from_project_path, world::{query_resource, resource::Resource, World}};
 
 use super::{camera::CameraBindGroupLayout, mesh::{ModelVertex, Vertex}, InstanceRaw, RenderEngine};
 
@@ -23,7 +23,7 @@ impl Pipeline2D {
 
         let pipeline_2d_shader = render_engine.data().device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Pipeline2D Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/shaders/shader.wgsl")).into())
+            source: wgpu::ShaderSource::Wgsl(include_str_from_project_path!("/res/shaders/shader.wgsl").into())
         });
         
         let pipeline = render_engine.data().device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
