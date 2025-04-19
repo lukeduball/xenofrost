@@ -1,6 +1,6 @@
 use crate::core::{utilities::include_str_from_project_path, world::{query_resource, resource::Resource, World}};
 
-use super::{camera::CameraBindGroupLayout, mesh::{ModelVertex, Vertex}, InstanceRaw, RenderEngine};
+use super::{camera::CameraBindGroupLayout, mesh::{ModelVertex, Vertex}, texture::TextureBindGroupLayout, InstanceRaw, RenderEngine};
 
 
 #[derive(Resource)]
@@ -11,12 +11,24 @@ pub struct Pipeline2D {
 impl Pipeline2D {
     pub fn new(world: &mut World) -> Self {
         let render_engine = query_resource!(world, RenderEngine).unwrap();
-        let camera_bind_group_layout = query_resource!(world, CameraBindGroupLayout).unwrap();
+        let camera_bind_group_layout = query_resource!(world, CameraBindGroupLayout).unwrap_or_else(|| {
+            let camera_bind_group_layout_rs = CameraBindGroupLayout::new(&render_engine);
+            world.add_resource(camera_bind_group_layout_rs);
+            let camera_bind_group_layout_handle = query_resource!(world, CameraBindGroupLayout);
+            camera_bind_group_layout_handle.unwrap()
+        });
+        let texture_bind_group_layout = query_resource!(world, TextureBindGroupLayout).unwrap_or_else(|| {
+            let texture_bind_group_layout_rs = TextureBindGroupLayout::new(&render_engine);
+            world.add_resource(texture_bind_group_layout_rs);
+            let texture_bind_group_layout_handle = query_resource!(world, TextureBindGroupLayout);
+            texture_bind_group_layout_handle.unwrap()
+        });
 
         let render_pipeline_layout = render_engine.data().device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Pipeline2D Layout"),
             bind_group_layouts: &[
                 &camera_bind_group_layout.data().bind_group_layout,
+                &texture_bind_group_layout.data().bind_group_layout,
             ],
             push_constant_ranges: &[],
         });

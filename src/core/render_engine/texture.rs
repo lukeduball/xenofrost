@@ -1,4 +1,9 @@
 use image::GenericImageView;
+use wgpu::BindGroupLayoutEntry;
+
+use crate::core::world::resource::{Resource, ResourceHandle};
+
+use super::RenderEngine;
 
 pub struct Texture {
     pub _texture: wgpu::Texture,
@@ -75,5 +80,38 @@ impl Texture {
         );
 
         Self {_texture: texture, view, sampler}
+    }
+}
+
+#[derive(Resource)]
+pub struct TextureBindGroupLayout {
+    pub bind_group_layout: wgpu::BindGroupLayout
+}
+
+impl TextureBindGroupLayout {
+    pub fn new(render_engine: &ResourceHandle<RenderEngine>) -> Self {
+        Self {
+            bind_group_layout: render_engine.data().device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("Texture Bind Group Layout"),
+                entries: &[
+                    BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture { 
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true }, 
+                            view_dimension: wgpu::TextureViewDimension::D2, 
+                            multisampled: false, 
+                        },
+                        count: None,
+                    },
+                    BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ]
+            })
+        }
     }
 }
