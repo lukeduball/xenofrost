@@ -40,13 +40,12 @@ fn vs_main(
     return out;
 }
 
+@group(1) @binding(0)
+var diffuse_texture: texture_2d<f32>;
+@group(1) @binding(1)
+var diffuse_sampler: sampler;
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    var alpha: f32 = 0.0;
-    var modified_tex_coords: vec2<f32> = in.tex_coords + vec2<f32>(-0.5, -0.5);
-    var radius_squared: f32 = 0.5 * 0.5;
-    if(modified_tex_coords.x * modified_tex_coords.x + modified_tex_coords.y * modified_tex_coords.y < radius_squared) {
-        alpha = 1.0;
-    }
-    return vec4(0.0, 0.0, 1.0, alpha);
+    return textureSample(diffuse_texture, diffuse_sampler, in.tex_coords);
 }
