@@ -23,7 +23,7 @@ struct InstanceInput {
     @location(10) sprite_size: vec2<f32>
 };
 
-const QUAD_SPRITE_SOLVER_ARRAY = array(
+var<private> QUAD_SPRITE_SOLVER_ARRAY: array<vec2<f32>, 4> = array(
     vec2(0.0, 0.0),
     vec2(0.0, 1.0),
     vec2(1.0, 0.0),

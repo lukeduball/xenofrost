@@ -163,7 +163,7 @@ impl InstanceAtlas {
                     format: wgpu::VertexFormat::Float32x2,
                 },
                 wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 20]>() as wgpu::BufferAddress,
+                    offset: std::mem::size_of::<[f32; 18]>() as wgpu::BufferAddress,
                     shader_location: 10,
                     format: wgpu::VertexFormat::Float32x2
                 }
