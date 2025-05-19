@@ -8,6 +8,69 @@ pub trait Vertex {
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct AtlasVertex {
+    pub position: [f32; 3]
+}
+
+impl Vertex for AtlasVertex {
+    fn desc() -> wgpu::VertexBufferLayout<'static> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<AtlasVertex>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[
+                wgpu::VertexAttribute {
+                    offset: 0,
+                    shader_location: 0,
+                    format: wgpu::VertexFormat::Float32x3
+                }
+            ]
+        }
+    }
+}
+
+#[derive(Resource)]
+pub struct AtlasQuadMesh {
+    pub mesh: Mesh
+}
+
+impl AtlasQuadMesh {
+    pub fn new(device: &wgpu::Device) -> Self {
+        Self {
+            mesh: create_atlas_quad_mesh(device)
+        }
+    }
+}
+
+const ATLAS_QUAD_VERTICES: &[AtlasVertex] = &[
+    AtlasVertex {position: [-0.5, 0.5, 0.0]},
+    AtlasVertex {position: [-0.5, -0.5, 0.0]},
+    AtlasVertex {position: [0.5, 0.5, 0.0]},
+    AtlasVertex {position: [0.5, -0.5, 0.0]},
+];
+
+fn create_atlas_quad_mesh(device: &wgpu::Device) -> Mesh {
+    let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("Atlas Quad Vertex Buffer"),
+        contents: bytemuck::cast_slice(ATLAS_QUAD_VERTICES),
+        usage: wgpu::BufferUsages::VERTEX,
+    });
+
+    let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("Atlas Quad Index Buffer"),
+        contents: bytemuck::cast_slice(QUAD_INDICES),
+        usage: wgpu::BufferUsages::INDEX,
+    });
+
+    Mesh {
+        name: String::from("Atlas Quad Mesh"),
+        vertex_buffer,
+        index_buffer,
+        num_elements: QUAD_INDICES.len() as u32,
+    }
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct ModelVertex {
     pub position: [f32; 3],
     pub tex_coords: [f32; 2]
@@ -66,7 +129,7 @@ const QUAD_INDICES: &[u16] = &[
     1, 3, 2
 ];
 
-pub fn create_quad_mesh(device: &wgpu::Device) -> Mesh {
+fn create_quad_mesh(device: &wgpu::Device) -> Mesh {
 
     let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("Quad Vertex Buffer"),
