@@ -128,7 +128,7 @@ impl Pipeline2D {
 pub struct InstanceAtlas {
     pub model: Mat4,
     pub tex_coords: Vec2,
-    pub padding: Vec2
+    pub sprite_size: Vec2
 }
 
 impl InstanceAtlas {
@@ -161,6 +161,11 @@ impl InstanceAtlas {
                     offset: std::mem::size_of::<[f32; 16]>() as wgpu::BufferAddress,
                     shader_location: 9,
                     format: wgpu::VertexFormat::Float32x2,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 20]>() as wgpu::BufferAddress,
+                    shader_location: 10,
+                    format: wgpu::VertexFormat::Float32x2
                 }
             ]
         }
