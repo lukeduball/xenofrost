@@ -6,6 +6,7 @@ use super::world::resource::Resource;
 
 pub struct KeyState {
     is_down: bool,
+    was_down: bool,
     was_pressed: bool,
     was_released: bool,
 }
@@ -14,20 +15,24 @@ impl KeyState {
     fn new() -> KeyState {
         KeyState {
             is_down: false,
+            was_down: false,
             was_pressed: false,
             was_released: false,
         }
     }
 
+    /// Returns true is the key is currently pressed down, otherwise false
     pub fn get_is_down(&self) -> bool {
         self.is_down
     }
 
+    /// Returns true if the key was pressed down for one iteration of the application, otherwise false
     #[allow(dead_code)]
     pub fn get_was_pressed(&self) -> bool {
         self.was_pressed
     }
 
+    /// Returns true if the key was un-pressed for one iteration of the application, otherwise false
     #[allow(dead_code)]
     pub fn get_was_released(&self) -> bool {
         self.was_released
@@ -51,6 +56,7 @@ impl InputManager {
         input_manager.create_key_binding("right", KeyCode::KeyD);
         input_manager.create_key_binding("up", KeyCode::KeyW);
         input_manager.create_key_binding("down", KeyCode::KeyS);
+        input_manager.create_key_binding("atlas_toggle", KeyCode::Space);
 
         input_manager
     }
@@ -78,19 +84,27 @@ impl InputManager {
                 let key_identifier_option = self.key_binding.get(keycode);
                 if let Some(key_identifer) = key_identifier_option {
                     let key_state = self.key_state.get_mut(key_identifer).unwrap();
-                    if key_state.is_down {
-                        if !state.is_pressed() {
-                            key_state.was_released = true;
-                        }
-                    } else {
-                        if state.is_pressed() {
-                            key_state.was_pressed = true;
-                        }
-                    }
                     key_state.is_down = state.is_pressed();
                 }
             }
             _ => ()
+        }
+    }
+
+    pub fn process_button_press_release_data(&mut self) {
+        for state in self.key_state.values_mut() {
+            if state.is_down && !state.was_down {
+                state.was_pressed = true;
+            } else {
+                state.was_pressed = false;
+            }
+
+            if !state.is_down && state.was_down {
+                state.was_released = true;
+            } else {
+                state.was_released = false;
+            }
+            state.was_down = state.is_down;
         }
     }
 

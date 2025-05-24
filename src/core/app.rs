@@ -203,8 +203,6 @@ impl<'a> ApplicationHandler<EngineEvent> for AppRunner<'a> {
         let input_manager = query_resource!(world, InputManager).unwrap();
         input_manager.data_mut().process_input(&event);
 
-        self.app.update();
-
         match event {
             WindowEvent::CloseRequested | WindowEvent::KeyboardInput { 
                 event: KeyEvent {
@@ -220,6 +218,9 @@ impl<'a> ApplicationHandler<EngineEvent> for AppRunner<'a> {
                 }
             },
             WindowEvent::RedrawRequested => {
+                input_manager.data_mut().process_button_press_release_data();
+                self.app.update();
+                
                 if !self.app.render() {
                     event_loop.exit();
                 }
