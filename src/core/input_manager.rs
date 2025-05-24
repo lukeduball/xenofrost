@@ -30,13 +30,11 @@ impl KeyState {
     }
 
     /// Returns true if the key was pressed down for one iteration of the application, otherwise false
-    #[allow(dead_code)]
     pub fn get_was_pressed(&self) -> bool {
         self.was_pressed
     }
 
     /// Returns true if the key was un-pressed for one iteration of the application, otherwise false
-    #[allow(dead_code)]
     pub fn get_was_released(&self) -> bool {
         self.was_released
     }
@@ -44,33 +42,36 @@ impl KeyState {
 
 #[derive(Resource)]
 pub struct InputManager {
-    key_binding: HashMap<KeyCode, &'static str>,
-    key_state: HashMap<&'static str, KeyState>
+    key_binding: HashMap<&'static str, KeyCode>,
+    key_state: HashMap<KeyCode, KeyState>
 }
 
 impl InputManager {
     pub fn new() -> InputManager {
-        let mut input_manager = Self {
+        Self {
             key_binding: HashMap::new(),
             key_state: HashMap::new()
-        };
-
-        input_manager.create_key_binding("left", KeyCode::KeyA);
-        input_manager.create_key_binding("right", KeyCode::KeyD);
-        input_manager.create_key_binding("up", KeyCode::KeyW);
-        input_manager.create_key_binding("down", KeyCode::KeyS);
-        input_manager.create_key_binding("atlas_toggle", KeyCode::Space);
-
-        input_manager
+        }
     }
 
-    fn create_key_binding(&mut self, key_identifier: &'static str, key_code: KeyCode) {
-        self.key_binding.insert(key_code, key_identifier);
-        self.key_state.insert(key_identifier, KeyState::new());
+    pub fn register_key_binding(&mut self, key_identifier: &'static str, key_code: KeyCode) {
+        self.key_binding.insert(key_identifier, key_code.clone());
+        
+        //If the key has not been registered before create a new KeyState for it. Otherwise it will continue using the already created KeyState
+        if !self.key_state.contains_key(&key_code) {
+            self.key_state.insert(key_code, KeyState::new());
+        }
     }
 
     pub fn get_key_state(&self, key_identifier: &str) -> Option<&KeyState> {
-        self.key_state.get(key_identifier)
+        let key_code_option = self.key_binding.get(key_identifier);
+
+        if let Some(key_code) = key_code_option {
+            let key_state = self.key_state.get(&key_code);
+            return key_state
+        }
+
+        None
     }
 
     pub fn process_input(&mut self, event: &WindowEvent) {
@@ -85,9 +86,8 @@ impl InputManager {
                 ..
             } => {
                 let local_keycode = convert_winit_keycode(keycode);
-                let key_identifier_option = self.key_binding.get(&local_keycode);
-                if let Some(key_identifer) = key_identifier_option {
-                    let key_state = self.key_state.get_mut(key_identifer).unwrap();
+                let key_state_option = self.key_state.get_mut(&local_keycode);
+                if let Some(key_state) = key_state_option {
                     key_state.is_down = state.is_pressed();
                 }
             }
@@ -113,7 +113,7 @@ impl InputManager {
     }
 }
 
-#[derive(Eq, PartialEq, Hash)]
+#[derive(Eq, PartialEq, Hash, Clone)]
 pub enum KeyCode {
     Unidentified(u32),
     /// <kbd>`</kbd> on a US keyboard. This is also called a backtick or grave.
