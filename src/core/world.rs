@@ -15,6 +15,18 @@ pub struct Transform2D {
     pub rotation: f32,
 }
 
+impl Transform2D {
+    pub fn rotate(&mut self, rotation_offset: f32) {
+        self.set_rotation(self.rotation + rotation_offset);
+    }
+
+    pub fn set_rotation(&mut self, rotation: f32) {
+        //Add 360.0 degrees so that there will be no negative degrees and the next line will keep it between 0 and 360 degrees
+        self.rotation = rotation + 360.0;
+        self.rotation %= 360.0;
+    }
+}
+
 type EntityComponentMap = HashMap<Entity, Rc<RefCell<dyn Component>>>;
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
