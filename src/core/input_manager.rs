@@ -1,11 +1,26 @@
 use std::collections::HashMap;
 
+use glam::Vec2;
 use winit::{event::{KeyEvent, WindowEvent}, keyboard::PhysicalKey};
 use winit_converter::convert_winit_keycode;
 
 use super::world::resource::Resource;
 
 mod winit_converter;
+
+pub struct Mouse {
+    physical_position: Vec2,
+    logical_position: Vec2
+}
+
+impl Mouse {
+    fn new() -> Self {
+        Self {
+            physical_position: Vec2::new(0.0, 0.0),
+            logical_position: Vec2::new(0.0, 0.0)
+        }
+    }
+}
 
 pub struct KeyState {
     is_down: bool,
@@ -43,14 +58,16 @@ impl KeyState {
 #[derive(Resource)]
 pub struct InputManager {
     key_binding: HashMap<&'static str, KeyCode>,
-    key_state: HashMap<KeyCode, KeyState>
+    key_state: HashMap<KeyCode, KeyState>,
+    mouse: Mouse
 }
 
 impl InputManager {
     pub fn new() -> InputManager {
         Self {
             key_binding: HashMap::new(),
-            key_state: HashMap::new()
+            key_state: HashMap::new(),
+            mouse: Mouse::new()
         }
     }
 
@@ -74,7 +91,15 @@ impl InputManager {
         None
     }
 
-    pub fn process_input(&mut self, event: &WindowEvent) {
+    pub fn get_mouse_logical(&self) -> Vec2 {
+        self.mouse.logical_position
+    }
+
+    pub fn get_mouse_physical(&self) -> Vec2 {
+        self.mouse.physical_position
+    }
+
+    pub fn process_input(&mut self, event: &WindowEvent, window_scale_factor: f64) {
         match event {
             WindowEvent::KeyboardInput {
                 event: 
@@ -90,7 +115,17 @@ impl InputManager {
                 if let Some(key_state) = key_state_option {
                     key_state.is_down = state.is_pressed();
                 }
-            }
+            },
+            WindowEvent::CursorMoved { 
+                device_id: _, 
+                position 
+            } => {
+                let logical_position = position.to_logical::<f32>(window_scale_factor);
+                self.mouse.physical_position.x = position.x as f32;
+                self.mouse.physical_position.y = position.y as f32;
+                self.mouse.logical_position.x = logical_position.x;
+                self.mouse.logical_position.y = logical_position.y;
+            },
             _ => ()
         }
     }

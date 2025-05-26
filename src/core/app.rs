@@ -193,6 +193,7 @@ impl<'a> ApplicationHandler<EngineEvent> for AppRunner<'a> {
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _window_id: WindowId, event: WindowEvent) {
         let world = &mut self.app.world;
+        let scale_factor = self.app.window.as_ref().unwrap().scale_factor();
 
         let render_engine = query_resource!(world, RenderEngine);
         if let None = render_engine {
@@ -201,7 +202,7 @@ impl<'a> ApplicationHandler<EngineEvent> for AppRunner<'a> {
         }
 
         let input_manager = query_resource!(world, InputManager).unwrap();
-        input_manager.data_mut().process_input(&event);
+        input_manager.data_mut().process_input(&event, scale_factor);
 
         match event {
             WindowEvent::CloseRequested | WindowEvent::KeyboardInput { 
