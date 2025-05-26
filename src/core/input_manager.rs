@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use glam::Vec2;
+use glam::{IVec2, Vec2};
 use winit::{event::{KeyEvent, WindowEvent}, keyboard::PhysicalKey};
 use winit_converter::convert_winit_keycode;
 
@@ -9,14 +9,14 @@ use super::world::resource::Resource;
 mod winit_converter;
 
 pub struct Mouse {
-    physical_position: Vec2,
+    physical_position: IVec2,
     logical_position: Vec2
 }
 
 impl Mouse {
     fn new() -> Self {
         Self {
-            physical_position: Vec2::new(0.0, 0.0),
+            physical_position: IVec2::new(0, 0),
             logical_position: Vec2::new(0.0, 0.0)
         }
     }
@@ -95,7 +95,7 @@ impl InputManager {
         self.mouse.logical_position
     }
 
-    pub fn get_mouse_physical(&self) -> Vec2 {
+    pub fn get_mouse_physical(&self) -> IVec2 {
         self.mouse.physical_position
     }
 
@@ -121,8 +121,8 @@ impl InputManager {
                 position 
             } => {
                 let logical_position = position.to_logical::<f32>(window_scale_factor);
-                self.mouse.physical_position.x = position.x as f32;
-                self.mouse.physical_position.y = position.y as f32;
+                self.mouse.physical_position.x = position.x as i32;
+                self.mouse.physical_position.y = position.y as i32;
                 self.mouse.logical_position.x = logical_position.x;
                 self.mouse.logical_position.y = logical_position.y;
             },

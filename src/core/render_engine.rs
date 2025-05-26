@@ -32,8 +32,8 @@ pub struct RenderEngine {
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     pub config: wgpu::SurfaceConfiguration,
-    window_width: u32,
-    window_height: u32
+    pub window_width: u32,
+    pub window_height: u32
 }
 
 impl RenderEngine {

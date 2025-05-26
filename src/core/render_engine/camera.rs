@@ -1,5 +1,6 @@
 use std::mem::size_of;
 
+use glam::{IVec2, Vec2, Vec4, Vec4Swizzles};
 use glam::{Mat4, Vec3};
 
 use crate::core::world::component::Component;
@@ -147,5 +148,19 @@ impl Camera {
         }
 
         queue.write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[camera_uniform]));
+    }
+
+    pub fn convert_screen_space_to_camera_space(&self, position: Vec3, direction: Vec3, screen_pixels: IVec2, window_size: IVec2) -> Vec3 {
+        let normalized_screen_coords = Vec2::splat(2.0) * screen_pixels.as_vec2() / window_size.as_vec2() - Vec2::splat(1.0);
+
+        let screen_pos = Vec4::new(normalized_screen_coords.x, -normalized_screen_coords.y, -1.0, 1.0);
+        
+        let view_proj = match &self.projection {
+            CameraProjection::Perspective(perspective_projection) => perspective_projection.build_view_projection_matrix(position, direction),
+            CameraProjection::Orthographic(orthographic_projection) => orthographic_projection.build_view_projection_matrix(position, direction),
+        };
+
+        let world_pos = view_proj.inverse() * screen_pos;
+        world_pos.xyz()
     }
 }
