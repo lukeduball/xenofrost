@@ -1,9 +1,12 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Instant};
 
 use winit::{application::ApplicationHandler, event::{ElementState, KeyEvent, WindowEvent}, event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy}, keyboard::{KeyCode, PhysicalKey}, window::WindowId};
 use xenofrost_macros::query_resource;
 
 use super::{input_manager::InputManager, render_engine::RenderEngine, world::World};
+
+//Micro seconds needed to be used because the integer duration of ms could be zero causing no updates for many frames
+const FRAMES_PER_UPDATE_MICRO_SECONDS: u128 = 1600;
 
 #[allow(dead_code)]
 pub struct App {
@@ -15,7 +18,9 @@ pub struct App {
     update_systems: Vec<Box<dyn Fn(&mut World)>>,
     prepare_systems: Vec<Box<dyn Fn(&mut World)>>,
     render_systems: Vec<Box<dyn Fn(&mut World)>>,
-    is_startup: bool
+    is_startup: bool,
+    previous_update_time: Instant,
+    lag: u128,
 }
 
 impl App {
@@ -28,7 +33,9 @@ impl App {
             update_systems: Vec::new(),
             prepare_systems: Vec::new(),
             render_systems: Vec::new(),
-            is_startup: true
+            is_startup: true,
+            previous_update_time: Instant::now(),
+            lag: 0,
         }
     }
 
@@ -219,9 +226,16 @@ impl<'a> ApplicationHandler<EngineEvent> for AppRunner<'a> {
                 }
             },
             WindowEvent::RedrawRequested => {
-                input_manager.data_mut().process_button_press_release_data();
-                self.app.update();
-                
+                let elapsed_time = self.app.previous_update_time.elapsed();
+                self.app.previous_update_time = Instant::now();
+                self.app.lag += elapsed_time.as_micros();
+
+                while self.app.lag > FRAMES_PER_UPDATE_MICRO_SECONDS {
+                    input_manager.data_mut().process_button_press_release_data();
+                    self.app.update();
+                    self.app.lag -= FRAMES_PER_UPDATE_MICRO_SECONDS;
+                }
+
                 if !self.app.render() {
                     event_loop.exit();
                 }
