@@ -48,79 +48,100 @@ pub struct Pipeline2D {
 
 impl Pipeline2D {
     pub fn new(world: &mut World) -> Self {
-        let render_engine = query_resource!(world, RenderEngine).unwrap();
-        let camera_bind_group_layout = query_resource!(world, CameraBindGroupLayout).unwrap_or_else(|| {
-            let camera_bind_group_layout_rs = CameraBindGroupLayout::new(&render_engine);
-            world.add_resource(camera_bind_group_layout_rs);
-            let camera_bind_group_layout_handle = query_resource!(world, CameraBindGroupLayout);
-            camera_bind_group_layout_handle.unwrap()
-        });
-        let texture_bind_group_layout = query_resource!(world, TextureBindGroupLayout).unwrap_or_else(|| {
-            let texture_bind_group_layout_rs = TextureBindGroupLayout::new(&render_engine);
-            world.add_resource(texture_bind_group_layout_rs);
-            let texture_bind_group_layout_handle = query_resource!(world, TextureBindGroupLayout);
-            texture_bind_group_layout_handle.unwrap()
-        });
-
-        let render_pipeline_layout = render_engine.data().device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("Pipeline2D Layout"),
-            bind_group_layouts: &[
-                &camera_bind_group_layout.data().bind_group_layout,
-                &texture_bind_group_layout.data().bind_group_layout,
-            ],
-            push_constant_ranges: &[],
-        });
-
-        let pipeline_2d_shader = render_engine.data().device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Pipeline2D Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str_from_project_path!("/res/shaders/model_shader2d.wgsl").into())
-        });
-        
-        let pipeline = render_engine.data().device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Pipeline2D"),
-            layout: Some(&render_pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &pipeline_2d_shader,
-                entry_point: "vs_main",
-                buffers: &[
-                    ModelVertex::desc(),
-                    InstanceTransform::desc()
-                ],
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &pipeline_2d_shader,
-                entry_point: "fs_main",
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: render_engine.data().config.format,
-                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
-                polygon_mode: wgpu::PolygonMode::Fill,
-                unclipped_depth: false,
-                conservative: false,
-            },
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState {
-                count: 1,
-                mask: !0,
-                alpha_to_coverage_enabled: false,
-            },
-            multiview: None,
-            cache: None,
-        });
+        let pipeline = create_default_pipeline2d(world, "Pipeline2D", include_str_from_project_path!("/res/shaders/model_shader2d.wgsl"));
 
         Self {
             pipeline
         }
     }
+}
+
+#[derive(Resource)]
+pub struct DebugBordersPipeline2D {
+    pub pipeline: wgpu::RenderPipeline
+}
+
+impl DebugBordersPipeline2D {
+    pub fn new(world: &mut World) -> Self {
+        let pipeline = create_default_pipeline2d(world, "DebugBordersPipeline2D", include_str_from_project_path!("/res/shaders/debug_shapes_shader2d.wgsl"));
+    
+        Self {
+            pipeline
+        }
+    }
+}
+
+fn create_default_pipeline2d(world: &mut World, label: &str, shader: &str) -> wgpu::RenderPipeline {
+    let render_engine = query_resource!(world, RenderEngine).unwrap();
+    let camera_bind_group_layout = query_resource!(world, CameraBindGroupLayout).unwrap_or_else(|| {
+        let camera_bind_group_layout_rs = CameraBindGroupLayout::new(&render_engine);
+        world.add_resource(camera_bind_group_layout_rs);
+        let camera_bind_group_layout_handle = query_resource!(world, CameraBindGroupLayout);
+        camera_bind_group_layout_handle.unwrap()
+    });
+    let texture_bind_group_layout = query_resource!(world, TextureBindGroupLayout).unwrap_or_else(|| {
+        let texture_bind_group_layout_rs = TextureBindGroupLayout::new(&render_engine);
+        world.add_resource(texture_bind_group_layout_rs);
+        let texture_bind_group_layout_handle = query_resource!(world, TextureBindGroupLayout);
+        texture_bind_group_layout_handle.unwrap()
+    });
+
+    let render_pipeline_layout = render_engine.data().device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some(format!("{} Layout", label).as_str()),
+        bind_group_layouts: &[
+            &camera_bind_group_layout.data().bind_group_layout,
+            &texture_bind_group_layout.data().bind_group_layout,
+        ],
+        push_constant_ranges: &[],
+    });
+
+    let pipeline_2d_shader = render_engine.data().device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        label: Some(format!("{} Shader", label).as_str()),
+        source: wgpu::ShaderSource::Wgsl(shader.into())
+    });
+    
+    let pipeline = render_engine.data().device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: Some(format!("{}", label).as_str()),
+        layout: Some(&render_pipeline_layout),
+        vertex: wgpu::VertexState {
+            module: &pipeline_2d_shader,
+            entry_point: "vs_main",
+            buffers: &[
+                ModelVertex::desc(),
+                InstanceTransform::desc()
+            ],
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
+        },
+        fragment: Some(wgpu::FragmentState {
+            module: &pipeline_2d_shader,
+            entry_point: "fs_main",
+            targets: &[Some(wgpu::ColorTargetState {
+                format: render_engine.data().config.format,
+                blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                write_mask: wgpu::ColorWrites::ALL,
+            })],
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
+        }),
+        primitive: wgpu::PrimitiveState {
+            topology: wgpu::PrimitiveTopology::TriangleList,
+            strip_index_format: None,
+            front_face: wgpu::FrontFace::Ccw,
+            cull_mode: Some(wgpu::Face::Back),
+            polygon_mode: wgpu::PolygonMode::Fill,
+            unclipped_depth: false,
+            conservative: false,
+        },
+        depth_stencil: None,
+        multisample: wgpu::MultisampleState {
+            count: 1,
+            mask: !0,
+            alpha_to_coverage_enabled: false,
+        },
+        multiview: None,
+        cache: None,
+    });
+
+    pipeline
 }
 
 #[repr(C)]
