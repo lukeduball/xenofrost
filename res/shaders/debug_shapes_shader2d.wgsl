@@ -13,13 +13,17 @@ struct VertexInput {
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) tex_coords: vec2<f32>,
+    @location(1) line_thickness: f32,
+    @location(2) shape_size: vec2<f32>,
 };
 
 struct InstanceInput {
-    @location(5) model_matrix_0: vec4<f32>,
-    @location(6) model_matrix_1: vec4<f32>,
-    @location(7) model_matrix_2: vec4<f32>,
-    @location(8) model_matrix_3: vec4<f32>,
+    @location(5)  model_matrix_0: vec4<f32>,
+    @location(6)  model_matrix_1: vec4<f32>,
+    @location(7)  model_matrix_2: vec4<f32>,
+    @location(8)  model_matrix_3: vec4<f32>,
+    @location(9)  size: vec2<f32>,
+    @location(10) line_thickness: f32,
 };
 
 @vertex
@@ -37,19 +41,20 @@ fn vs_main(
 
     var out: VertexOutput;
     out.tex_coords = model.tex_coords;
+    out.tex_coords *= instance.size;
+    out.shape_size = instance.size;
     out.clip_position = camera.view_proj * model_matrix * vec4<f32>(model.position, 1.0);
+    out.line_thickness = instance.line_thickness;
     return out;
 }
-
-const BORDER_SIZE: f32 = 0.05;
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var alpha = 0.0;
-    if in.tex_coords.x <= BORDER_SIZE || in.tex_coords.x >= 1.0 - BORDER_SIZE {
+    if in.tex_coords.x <= in.line_thickness || in.tex_coords.x >= in.shape_size.x - in.line_thickness {
         alpha = 1.0;
     }
-    else if in.tex_coords.y <= BORDER_SIZE || in.tex_coords.y >= 1.0 - BORDER_SIZE {
+    else if in.tex_coords.y <= in.line_thickness || in.tex_coords.y >= in.shape_size.y - in.line_thickness {
         alpha = 1.0;
     }
 
