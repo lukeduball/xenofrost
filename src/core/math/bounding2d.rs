@@ -1,21 +1,25 @@
 use glam::Vec2;
 
 pub struct Aabb2d {
-    min: Vec2,
-    max: Vec2,
+    pub center: Vec2,
+    pub half_size: Vec2,
 }
 
 impl Aabb2d {
     pub fn new(center: Vec2, half_size: Vec2) -> Self {
         Self {
-            min: center - half_size,
-            max: center + half_size,
+            center,
+            half_size,
         }
     }
 
     pub fn intersects(&self, other_aabb2d: &Aabb2d) -> bool {
-        let does_x_overlap = self.min.x <= other_aabb2d.max.x && self.max.x >= other_aabb2d.min.x;
-        let does_y_overlap = self.min.y <= other_aabb2d.max.y && self.max.y >= other_aabb2d.min.y;
+        let min = self.center - self.half_size;
+        let max = self.center + self.half_size;
+        let other_aabb2d_min = other_aabb2d.center - other_aabb2d.half_size;
+        let other_aabb2d_max = other_aabb2d.center + other_aabb2d.half_size;
+        let does_x_overlap = min.x <= other_aabb2d_max.x && max.x >= other_aabb2d_min.x;
+        let does_y_overlap = min.y <= other_aabb2d_max.y && max.y >= other_aabb2d_min.y;
         does_x_overlap && does_y_overlap
     }
 }

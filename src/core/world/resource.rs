@@ -40,11 +40,6 @@ mod tests {
     struct ResourceTest(u64);
 
     #[test]
-    fn test_phantom() {
-
-    }
-
-    #[test]
     fn test_resource_handle_creation() {
         let test_resource = ResourceTest(98342);
         let test_resource_ref: Rc<RefCell<dyn Resource>> = Rc::new(RefCell::new(test_resource));

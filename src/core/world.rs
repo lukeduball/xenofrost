@@ -5,6 +5,8 @@ use resource::{Resource, ResourceHandle};
 
 pub use xenofrost_macros::{query_resource, world_query};
 
+use crate::core::math::bounding2d::Aabb2d;
+
 pub mod component;
 pub mod resource;
 
@@ -24,6 +26,21 @@ impl Transform2D {
         //Add 360.0 degrees so that there will be no negative degrees and the next line will keep it between 0 and 360 degrees
         self.rotation = rotation + 360.0;
         self.rotation %= 360.0;
+    }
+}
+
+//Component that stores a list of collision objects
+//TODO update to not be related to a specific type or make Collider lists specialized to a specific collision shape
+#[derive(Component)]
+pub struct Colliders {
+    pub collider_list: Vec<Aabb2d>
+}
+
+impl Colliders {
+    pub fn new() -> Self {
+        Self {
+            collider_list: Vec::new(),
+        }
     }
 }
 
