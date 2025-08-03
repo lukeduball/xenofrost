@@ -5,7 +5,7 @@ use resource::{Resource, ResourceHandle};
 
 pub use xenofrost_macros::{query_resource, world_query};
 
-use crate::core::math::bounding2d::Aabb2d;
+use crate::core::math::bounding2d::BoundingBox2d;
 
 pub mod component;
 pub mod resource;
@@ -33,7 +33,7 @@ impl Transform2D {
 //TODO update to not be related to a specific type or make Collider lists specialized to a specific collision shape
 #[derive(Component)]
 pub struct Colliders {
-    pub collider_list: Vec<Aabb2d>
+    pub collider_list: Vec<BoundingBox2d>
 }
 
 impl Colliders {
