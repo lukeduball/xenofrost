@@ -4,7 +4,7 @@ use camera::Camera;
 use glam::Vec3;
 use mesh::Mesh;
 use winit::window::Window;
-use crate::core::world::{resource::Resource, Transform2D, query_resource, world_query};
+use crate::core::world::{resource::Resource, Transform2d, query_resource, world_query};
 
 use super::world::World;
 
@@ -163,7 +163,7 @@ impl RenderEngine {
         aspect_ratio.data_mut().aspect_ratio = new_width as f32 / new_height as f32;
         self.surface.configure(&self.device, &self.config);
 
-        let camera_query = world_query!(Transform2D, mut Camera);
+        let camera_query = world_query!(Transform2d, mut Camera);
         for (_, transform2d, mut camera) in camera_query(world).iter() {
             camera.update_aspect_ratio(aspect_ratio.data().aspect_ratio);
             camera.update_uniform_buffer(

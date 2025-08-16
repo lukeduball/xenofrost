@@ -4,9 +4,9 @@ use bytemuck::Zeroable;
 use glam::{Mat3, Vec2};
 
 pub struct Intersection2dResult {
-    collision: bool,
-    normal: Vec2,
-    penetration_val: f32
+    pub collision: bool,
+    pub normal: Vec2,
+    pub penetration_val: f32
 }
 
 impl Intersection2dResult {
@@ -94,7 +94,7 @@ impl Obb2d {
         ]
     }
 
-    fn get_intersection_result(&self, other_obb2d: &Obb2d) -> Intersection2dResult {
+    pub fn get_intersection_result(&self, other_obb2d: &Obb2d) -> Intersection2dResult {
         let vertices = self.calculate_vertices();
         let normals = calculate_normals_of_box2d(&vertices);
         let other_vertices = other_obb2d.calculate_vertices();

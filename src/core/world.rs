@@ -11,13 +11,13 @@ pub mod component;
 pub mod resource;
 
 #[derive(Component)]
-pub struct Transform2D {
+pub struct Transform2d {
     pub translation: Vec2,
     pub scale: Vec2,
     pub rotation: f32,
 }
 
-impl Transform2D {
+impl Transform2d {
     pub fn rotate(&mut self, rotation_offset: f32) {
         self.set_rotation(self.rotation + rotation_offset);
     }
@@ -31,7 +31,16 @@ impl Transform2D {
 
 pub struct Collider2d {
     pub obb2d: Obb2d,
-    pub transform: Transform2D
+    pub transform: Transform2d
+}
+
+impl Collider2d {
+    pub fn new(obb2d: Obb2d, transform: Transform2d) -> Self {
+        Self {
+            obb2d,
+            transform
+        }
+    }
 }
 
 //Component that stores a list of collision objects
