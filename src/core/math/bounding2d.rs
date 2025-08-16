@@ -11,7 +11,7 @@ pub enum CollisionPrimitive2d {
 }
 
 impl CollisionPrimitive2d {
-    fn intersects(&self, other_primitive: &CollisionPrimitive2d) -> Intersection2dResult {
+    pub fn intersects(&self, other_primitive: &CollisionPrimitive2d) -> Intersection2dResult {
         match self {
             Self::Obb2d(obb2d) => {
                 match other_primitive {
@@ -50,7 +50,7 @@ pub struct BoundingBox2d {
     pub rotation: f32
 }
 
-struct Intersection2dResult {
+pub struct Intersection2dResult {
     collision: bool,
     normal: Vec2,
     penetration_val: f32

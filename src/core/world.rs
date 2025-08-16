@@ -29,10 +29,15 @@ impl Transform2D {
     }
 }
 
+pub struct Collider2d {
+    collision_primitive: CollisionPrimitive2d,
+    transform: Transform2D
+}
+
 //Component that stores a list of collision objects
 #[derive(Component)]
 pub struct Colliders2d {
-    pub collider_list: Vec<CollisionPrimitive2d>
+    pub collider_list: Vec<Collider2d>
 }
 
 impl Colliders2d {
