@@ -5,7 +5,7 @@ use resource::{Resource, ResourceHandle};
 
 pub use xenofrost_macros::{query_resource, world_query};
 
-use crate::core::math::bounding2d::CollisionPrimitive2d;
+use crate::core::math::bounding2d::Obb2d;
 
 pub mod component;
 pub mod resource;
@@ -30,8 +30,8 @@ impl Transform2D {
 }
 
 pub struct Collider2d {
-    collision_primitive: CollisionPrimitive2d,
-    transform: Transform2D
+    pub obb2d: Obb2d,
+    pub transform: Transform2D
 }
 
 //Component that stores a list of collision objects
