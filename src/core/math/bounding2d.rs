@@ -15,26 +15,26 @@ impl Intersection2dResult {
     }
 }
 
-fn find_separating_axis(box1_vertices: &[Vec2; 4], box1_normals: &[Vec2; 2], box2_vertices: &[Vec2; 4], box2_normals: &[Vec2; 2]) -> Intersection2dResult {
+fn find_separating_axis(poly1_vertices: &Vec<Vec2>, poly1_normals: &Vec<Vec2>, poly2_vertices: &Vec<Vec2>, poly2_normals: &Vec<Vec2>) -> Intersection2dResult {
     let mut intersection_result = Intersection2dResult::new();
     
-    let box_normals_list = [box1_normals, box2_normals];
+    let box_normals_list = [poly1_normals, poly2_normals];
     //Loop through the set of normals belonging to each box
     for box_normals in box_normals_list {
         //Perform the check on each normal of a specific box
         for normal in box_normals {
             let mut b1_max = f32::MIN;
             let mut b1_min = f32::MAX;
-            for box1_vertex in box1_vertices {
-                let projection = normal.dot(*box1_vertex);
+            for poly1_vertex in poly1_vertices {
+                let projection = normal.dot(*poly1_vertex);
                 b1_max = b1_max.max(projection);
                 b1_min = b1_min.min(projection);
             }
             
             let mut b2_max = f32::MIN;
             let mut b2_min = f32::MAX;
-            for box2_vertex in box2_vertices {
-                let projection = normal.dot(*box2_vertex);
+            for poly2_vertex in poly2_vertices {
+                let projection = normal.dot(*poly2_vertex);
                 b2_max = b2_max.max(projection);
                 b2_min = b2_min.min(projection);
             }
@@ -66,6 +66,47 @@ fn calculate_normals_of_box2d(box_vertices: &[Vec2; 4]) -> [Vec2; 2] {
         (box_vertices[1] - box_vertices[2]).perp().normalize()
     ]
 }
+
+pub struct Polygon2d {
+    pub points: Vec<Vec2>,
+    normals: Vec<Vec2>
+}
+
+impl Polygon2d {
+    pub fn new(points: Vec<Vec2>) -> Self {
+        let normals = Polygon2d::calculate_normals(&points);
+        Self {
+            points,
+            normals
+        }
+    }
+
+    pub fn set_translation_rotation(&mut self, translation: Vec2, rotation: f32) {
+        let translation_matrix = Mat3::from_translation(translation);
+        let rotation_matrix = Mat3::from_angle(rotation.to_radians());
+        let combined_matrix = translation_matrix * rotation_matrix;
+        for i in 0..self.points.len() {
+            self.points[i] = combined_matrix.transform_point2(self.points[i]);
+        }
+    }
+
+    fn calculate_normals(points: &Vec<Vec2>) -> Vec<Vec2> {
+        let mut normals = Vec::new();
+
+        for i in 0..points.len() {
+            let normal = (points[(i+1)%points.len()] - points[i]).perp().normalize();
+            normals.push(normal);
+        }
+
+        normals
+    }
+
+    pub fn get_intersection_result(&self, other_polygon2d: &Polygon2d) -> Intersection2dResult {
+        let separating_axis_result = find_separating_axis(&self.points, &self.normals, &other_polygon2d.points, &other_polygon2d.normals);
+        separating_axis_result
+    }
+}
+
 pub struct Obb2d {
     pub center: Vec2,
     pub half_size: Vec2,
@@ -100,7 +141,7 @@ impl Obb2d {
         let other_vertices = other_obb2d.calculate_vertices();
         let other_normals = calculate_normals_of_box2d(&other_vertices);
 
-        let separating_axis_result = find_separating_axis(&vertices, &normals, &other_vertices, &other_normals);
+        let separating_axis_result = find_separating_axis(&vertices.to_vec(), &normals.to_vec(), &other_vertices.to_vec(), &other_normals.to_vec());
         separating_axis_result
     }
 }

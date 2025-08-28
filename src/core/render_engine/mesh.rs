@@ -8,14 +8,14 @@ pub trait Vertex {
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct AtlasVertex {
+pub struct PositionVertex {
     pub position: [f32; 3]
 }
 
-impl Vertex for AtlasVertex {
+impl Vertex for PositionVertex {
     fn desc() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<AtlasVertex>() as wgpu::BufferAddress,
+            array_stride: std::mem::size_of::<PositionVertex>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &[
                 wgpu::VertexAttribute {
@@ -41,11 +41,11 @@ impl AtlasQuadMesh {
     }
 }
 
-const ATLAS_QUAD_VERTICES: &[AtlasVertex] = &[
-    AtlasVertex {position: [-0.5, 0.5, 0.0]},
-    AtlasVertex {position: [-0.5, -0.5, 0.0]},
-    AtlasVertex {position: [0.5, 0.5, 0.0]},
-    AtlasVertex {position: [0.5, -0.5, 0.0]},
+const ATLAS_QUAD_VERTICES: &[PositionVertex] = &[
+    PositionVertex {position: [-0.5, 0.5, 0.0]},
+    PositionVertex {position: [-0.5, -0.5, 0.0]},
+    PositionVertex {position: [0.5, 0.5, 0.0]},
+    PositionVertex {position: [0.5, -0.5, 0.0]},
 ];
 
 fn create_atlas_quad_mesh(device: &wgpu::Device) -> Mesh {

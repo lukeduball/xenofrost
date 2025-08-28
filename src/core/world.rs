@@ -1,3 +1,4 @@
+use core::fmt;
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 use component::Component;
 use glam::Vec2;
@@ -5,7 +6,7 @@ use resource::{Resource, ResourceHandle};
 
 pub use xenofrost_macros::{query_resource, world_query};
 
-use crate::core::math::bounding2d::Obb2d;
+use crate::core::math::bounding2d::Polygon2d;
 
 pub mod component;
 pub mod resource;
@@ -30,14 +31,14 @@ impl Transform2d {
 }
 
 pub struct Collider2d {
-    pub obb2d: Obb2d,
+    pub polygon2d: Polygon2d,
     pub transform: Transform2d
 }
 
 impl Collider2d {
-    pub fn new(obb2d: Obb2d, transform: Transform2d) -> Self {
+    pub fn new(polygon2d: Polygon2d, transform: Transform2d) -> Self {
         Self {
-            obb2d,
+            polygon2d,
             transform
         }
     }
@@ -65,6 +66,12 @@ pub struct Entity(pub u64);
 impl Into<u64> for Entity {
     fn into(self) -> u64 {
         self.0
+    }
+}
+
+impl fmt::Display for Entity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Entity {}", self.0)
     }
 }
 
