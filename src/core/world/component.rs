@@ -1,17 +1,32 @@
-use std::{any::Any, cell::{Ref, RefMut}};
+use std::{cell::{Ref, RefCell, RefMut}, rc::Rc};
 
-pub trait Component : Any {
+pub trait Component {
     fn get_component_id(&self) -> u64;
-    fn as_any(&self) -> &dyn Any;
-    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
-pub fn component_ref_downcast<T: Component>(reference: Ref<dyn Component>) -> Ref<T> {
-    Ref::map(reference, |x| x.as_any().downcast_ref::<T>().unwrap())
+pub struct ComponentHandle<T: Component> {
+    handle: Rc<RefCell<T>>
 }
 
-pub fn component_mut_downcast<T: Component>(reference: RefMut<dyn Component>) -> RefMut<T> {
-    RefMut::map(reference, |x| x.as_any_mut().downcast_mut::<T>().unwrap())
+impl<T: Component> ComponentHandle<T> {
+    pub fn new(reference: Rc<RefCell<dyn Component>>) -> Self {
+        unsafe {
+            let ptr = Rc::into_raw(reference) as *const RefCell<T>;
+            let handle = Rc::from_raw(ptr);
+
+            ComponentHandle { 
+                handle 
+            }
+        }
+    }
+
+    pub fn data(&self) -> Ref<T> {
+        self.handle.borrow()
+    }
+
+    pub fn data_mut(&self) -> RefMut<T> {
+        self.handle.borrow_mut()
+    }
 }
 
 pub use xenofrost_macros::Component;

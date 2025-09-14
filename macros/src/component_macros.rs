@@ -19,14 +19,6 @@ pub fn impl_component_id_macro(ast: &syn::DeriveInput) -> TokenStream {
             fn get_component_id(&self) -> u64 {
                 crate::BASELINE_NUMBER_OF_COMPONENTS + #id
             }
-
-            fn as_any(&self) -> &dyn std::any::Any {
-                self
-            }
-
-            fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-                self
-            }
         }
     };
     gen.into()

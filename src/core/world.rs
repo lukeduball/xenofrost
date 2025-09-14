@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 use component::Component;
-use glam::Vec2;
+use glam::{Vec2, Vec3};
 use resource::{Resource, ResourceHandle};
 
 pub use xenofrost_macros::{query_resource, world_query};
@@ -32,14 +32,16 @@ impl Transform2d {
 
 pub struct Collider2d {
     pub polygon2d: Polygon2d,
-    pub transform: Transform2d
+    pub transform: Transform2d,
+    pub debug_color: Vec3
 }
 
 impl Collider2d {
     pub fn new(polygon2d: Polygon2d, transform: Transform2d) -> Self {
         Self {
             polygon2d,
-            transform
+            transform,
+            debug_color: Vec3::new(1.0, 0.0, 0.0)
         }
     }
 }
@@ -117,7 +119,7 @@ impl World {
         }
     }
 
-    pub fn add_component_to_entity<T: Component>(&mut self, entity: Entity, component: T) -> &mut Self {
+    pub fn add_component_to_entity<T: Component + 'static>(&mut self, entity: Entity, component: T) -> &mut Self {
         let component_id = component.get_component_id();
         let component_ref: Rc<RefCell<dyn Component>> = Rc::new(RefCell::new(component));
 
@@ -225,7 +227,7 @@ mod tests {
         let query1 = world_query!(Test1, Test2, Test3);
         let result1 = query1(&world);
         for (entity, test1, test2, test3) in result1.iter() {
-            println!("This is a valid query {} {} {} {} {}", entity.0, test1.0, test2.0, test3.color, test3.position);
+            println!("This is a valid query {} {} {} {} {}", entity.0, test1.data().0, test2.data().0, test3.data().color, test3.data().position);
             assert_eq!(resource_data.0, 543);
         }
 
@@ -233,28 +235,28 @@ mod tests {
         let query2 = world_query!(Test1);
         let result2 = query2(&world);
         for (entity, test1) in result2.iter() {
-            println!("This is a valid query {} {}", entity.0, test1.0);
+            println!("This is a valid query {} {}", entity.0, test1.data().0);
             assert_eq!(resource_data.0, 19);
         }
 
         let query3 = world_query!(Test1, Test2);
         let result3 = query3(&world);
         for (entity, test1, test2) in result3.iter() {
-            println!("This is a valid query {} {} {}", entity.0, test1.0, test2.0);
+            println!("This is a valid query {} {} {}", entity.0, test1.data().0, test2.data().0);
         }
 
         let query_mut = world_query!(mut Test2, Test3);
         let query_mut_result = query_mut(&world);
-        for (entity, mut test2, test3) in query_mut_result.iter() {
-            println!("This is a mut pre-query {} {} {} {}", entity.0, test2.0, test3.color, test3.position);
-            test2.0 = 10.5;
-            println!("This is a mut post-query {} {} {} {}", entity.0, test2.0, test3.color, test3.position);
+        for (entity, test2, test3) in query_mut_result.iter() {
+            println!("This is a mut pre-query {} {} {} {}", entity.0, test2.data().0, test3.data().color, test3.data().position);
+            test2.data_mut().0 = 10.5;
+            println!("This is a mut post-query {} {} {} {}", entity.0, test2.data().0, test3.data().color, test3.data().position);
         }
 
         let query4 = world_query!(Test2, Test3);
         let result4 = query4(&world);
         for (entity, test2, test3) in result4.iter() {
-            println!("This is a valid query {} {} {} {}", entity.0, test2.0, test3.color, test3.position);
+            println!("This is a valid query {} {} {} {}", entity.0, test2.data().0, test3.data().color, test3.data().position);
         }
     }
 }

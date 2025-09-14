@@ -164,10 +164,10 @@ impl RenderEngine {
         self.surface.configure(&self.device, &self.config);
 
         let camera_query = world_query!(Transform2d, mut Camera);
-        for (_, transform2d, mut camera) in camera_query(world).iter() {
-            camera.update_aspect_ratio(aspect_ratio.data().aspect_ratio);
-            camera.update_uniform_buffer(
-                Vec3::new(transform2d.translation.x, transform2d.translation.y, -1.0),
+        for (_, transform2d, camera) in camera_query(world).iter() {
+            camera.data_mut().update_aspect_ratio(aspect_ratio.data().aspect_ratio);
+            camera.data_mut().update_uniform_buffer(
+                Vec3::new(transform2d.data().translation.x, transform2d.data().translation.y, -1.0),
                 Vec3::new(0.0, 0.0, 1.0),
                 &self.queue
             );

@@ -9,7 +9,7 @@ use crate::macro_utilities::parse_one_or_more;
 #[derive(Clone)]
 struct ComponentInfo {
     component_type: syn::Type,
-    mutable: bool
+    _mutable: bool
 }
 
 impl Parse for ComponentInfo {
@@ -23,7 +23,7 @@ impl Parse for ComponentInfo {
         let item = input.parse()?;
         Ok(ComponentInfo {
             component_type: item,
-            mutable: is_mut
+            _mutable: is_mut
         })
     }
 }
@@ -31,74 +31,11 @@ impl Parse for ComponentInfo {
 impl ToTokens for ComponentInfo {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         let component_type = &self.component_type;
-        let result = if self.mutable {
-            quote! {
-                std::cell::RefMut<'a, #component_type>
-            }
-        }
-        else {
-            quote! {
-                std::cell::Ref<'a, #component_type>
-            }
+        let result = quote! {
+            #component_type
         };
 
         tokens.extend(result)
-    }
-}
-
-struct BorrowTokenGen {
-    mutable: bool
-}
-
-impl BorrowTokenGen {
-    fn new(mutable: bool) -> Self {
-        Self { mutable }
-    }
-}
-
-impl ToTokens for BorrowTokenGen {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
-        let result = if self.mutable {
-            quote! {
-                .borrow_mut()
-            }
-        }
-        else {
-            quote! {
-                .borrow()
-            }
-        };
-
-        tokens.extend(result);
-    }
-}
-
-struct ComponentCastTokenGen {
-    component_info: ComponentInfo
-}
-
-impl ComponentCastTokenGen {
-    fn new(component_info: ComponentInfo) -> Self {
-        Self { component_info }
-    }
-}
-
-impl ToTokens for ComponentCastTokenGen {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
-        let component_type = &self.component_info.component_type;
-
-        let result = if self.component_info.mutable {
-            quote! {
-                xenofrost::core::world::component::component_mut_downcast::<#component_type>
-            }
-        }
-        else {
-            quote! {
-                xenofrost::core::world::component::component_ref_downcast::<#component_type>
-            }
-        };
-
-        tokens.extend(result);
     }
 }
 
@@ -128,13 +65,6 @@ impl ToTokens for QueryResult {
         let component_types = &self.component_types;
         let component_type_list = &self.component_type_list;
         let number_of_types = component_type_list.len();
-
-        let mut component_type_query_const = Vec::new();
-        let mut component_borrow = Vec::new();
-        for component_type in component_types {
-            component_type_query_const.push(ComponentCastTokenGen::new(component_type.clone()));
-            component_borrow.push(BorrowTokenGen::new(component_type.mutable));
-        }
 
         let index = (0..number_of_types).map(syn::Index::from);
 
@@ -168,6 +98,12 @@ impl ToTokens for QueryResult {
                             index: 0
                         }
                     }
+
+                    fn get_entry(&self, i: usize) -> (xenofrost::core::world::Entity #(, xenofrost::core::world::component::ComponentHandle<#component_types>)*) {
+                        let entity = self.entries[i].entity;
+                        let components = &self.entries[i].components;
+                        return (entity #(, xenofrost::core::world::component::ComponentHandle::<#component_types>::new(components[#index].clone()))*)
+                    }
                 };
 
                 struct QueryResultIterator<'a> {
@@ -176,14 +112,11 @@ impl ToTokens for QueryResult {
                 };
 
                 impl<'a> Iterator for QueryResultIterator<'a> {
-                    type Item = (xenofrost::core::world::Entity #(, (#component_types))*);
+                    type Item = (xenofrost::core::world::Entity #(, xenofrost::core::world::component::ComponentHandle<#component_types>)*);
                     
                     fn next(&mut self) -> Option<Self::Item> {
                         if self.index < self.query_result.entries.len() {
-                            let query_result_entry = &self.query_result.entries[self.index];
-                            let entity = query_result_entry.entity;
-                            let components = &query_result_entry.components;
-                            let result = (entity #(, (#component_type_query_const)(components[#index]#component_borrow))*);
+                            let result = self.query_result.get_entry(self.index);
                             self.index += 1;
                             Some(result)
                         }

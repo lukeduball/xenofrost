@@ -1,6 +1,6 @@
 use glam::{Mat4, Vec2};
 
-use crate::core::{render_engine::mesh::{Mesh, PositionVertex}, utilities::include_str_from_project_path, world::{query_resource, resource::Resource, World}};
+use crate::core::{render_engine::mesh::{Mesh, PositionVertex}, utilities::include_str_from_project_path, world::{query_resource, resource::{Resource, ResourceHandle}, World}};
 
 use super::{camera::CameraBindGroupLayout, mesh::{ModelVertex, Vertex}, texture::TextureBindGroupLayout, RenderEngine};
 
@@ -408,8 +408,37 @@ impl AtlasPipeline2d {
     }
 }
 
+#[derive(Resource)]
+pub struct ColorBindGroupLayout {
+    pub bind_group_layout: wgpu::BindGroupLayout
+}
+
+impl ColorBindGroupLayout {
+    pub fn new(render_engine: &ResourceHandle<RenderEngine>) -> Self {
+        Self {
+            bind_group_layout: render_engine.data().device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("ColorBindGroupLayout"),
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Buffer { 
+                            ty: wgpu::BufferBindingType::Uniform, 
+                            has_dynamic_offset: false, 
+                            min_binding_size: None, 
+                        },
+                        count: None
+                    }
+                ],
+            })
+        }
+    }
+}
+
 pub struct DebugLineInstance {
-    pub mesh: Mesh
+    pub mesh: Mesh,
+    pub color_uniform: wgpu::Buffer,
+    pub color_bind_group: wgpu::BindGroup
 }
 
 #[derive(Resource)]
@@ -435,11 +464,18 @@ fn create_debug_lines_pipeline2d(world: &mut World, label: &str, shader: &str) -
         let camera_bind_group_layout_handle = query_resource!(world, CameraBindGroupLayout);
         camera_bind_group_layout_handle.unwrap()
     });
+    let color_bind_group_layout = query_resource!(world, ColorBindGroupLayout).unwrap_or_else(|| {
+        let color_bind_group_layout_rs = ColorBindGroupLayout::new(&render_engine);
+        world.add_resource(color_bind_group_layout_rs);
+        let color_bind_group_layout_handle = query_resource!(world, ColorBindGroupLayout);
+        color_bind_group_layout_handle.unwrap()
+    });
 
     let render_pipeline_layout = render_engine.data().device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: Some(format!("{} Layout", label).as_str()),
         bind_group_layouts: &[
             &camera_bind_group_layout.data().bind_group_layout,
+            &color_bind_group_layout.data().bind_group_layout
         ],
         push_constant_ranges: &[],
     });
