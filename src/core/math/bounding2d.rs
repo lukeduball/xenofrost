@@ -15,8 +15,10 @@ impl Intersection2dResult {
     }
 }
 
-fn find_separating_axis(poly1_vertices: &Vec<Vec2>, poly1_normals: &Vec<Vec2>, poly2_vertices: &Vec<Vec2>, poly2_normals: &Vec<Vec2>) -> Intersection2dResult {
+fn find_separating_axis(poly1_vertices: &Vec<Vec2>, poly1_normals: &Vec<Vec2>, poly1_center: &Vec2, poly2_vertices: &Vec<Vec2>, poly2_normals: &Vec<Vec2>, poly2_center: &Vec2) -> Intersection2dResult {
     let mut intersection_result = Intersection2dResult::new();
+
+    let center_vector = poly2_center - poly1_center;
     
     let box_normals_list = [poly1_normals, poly2_normals];
     //Loop through the set of normals belonging to each box
@@ -46,7 +48,13 @@ fn find_separating_axis(poly1_vertices: &Vec<Vec2>, poly1_normals: &Vec<Vec2>, p
                 let penetration = penetration1.min(penetration2);
                 if penetration < intersection_result.penetration_val {
                     intersection_result.penetration_val = penetration;
-                    intersection_result.normal = normal.clone();
+                    if center_vector.dot(*normal) < 0.0 {
+                        intersection_result.normal = normal.clone();
+                    }
+                    else {
+                        intersection_result.normal = -normal.clone();
+                    }
+                    
                 }
             }
             else {
@@ -69,14 +77,17 @@ fn calculate_normals_of_box2d(box_vertices: &[Vec2; 4]) -> [Vec2; 2] {
 
 pub struct Polygon2d {
     pub points: Vec<Vec2>,
+    center: Vec2,
     normals: Vec<Vec2>
 }
 
 impl Polygon2d {
     pub fn new(points: Vec<Vec2>) -> Self {
         let normals = Polygon2d::calculate_normals(&points);
+        let center = Polygon2d::calculate_center(&points);
         Self {
             points,
+            center,
             normals
         }
     }
@@ -88,6 +99,16 @@ impl Polygon2d {
         for i in 0..self.points.len() {
             self.points[i] = combined_matrix.transform_point2(self.points[i]);
         }
+        self.normals = Polygon2d::calculate_normals(&self.points);
+        self.center = Polygon2d::calculate_center(&self.points);
+    }
+
+    fn calculate_center(points: &Vec<Vec2>) -> Vec2 {
+        let mut center = Vec2::splat(0.0);
+        for point in points {
+            center += point;
+        }
+        center / points.len() as f32
     }
 
     fn calculate_normals(points: &Vec<Vec2>) -> Vec<Vec2> {
@@ -102,7 +123,7 @@ impl Polygon2d {
     }
 
     pub fn get_intersection_result(&self, other_polygon2d: &Polygon2d) -> Intersection2dResult {
-        let separating_axis_result = find_separating_axis(&self.points, &self.normals, &other_polygon2d.points, &other_polygon2d.normals);
+        let separating_axis_result = find_separating_axis(&self.points, &self.normals, &self.center, &other_polygon2d.points, &other_polygon2d.normals, &other_polygon2d.center);
         separating_axis_result
     }
 }
@@ -141,7 +162,7 @@ impl Obb2d {
         let other_vertices = other_obb2d.calculate_vertices();
         let other_normals = calculate_normals_of_box2d(&other_vertices);
 
-        let separating_axis_result = find_separating_axis(&vertices.to_vec(), &normals.to_vec(), &other_vertices.to_vec(), &other_normals.to_vec());
+        let separating_axis_result = find_separating_axis(&vertices.to_vec(), &normals.to_vec(), &self.center, &other_vertices.to_vec(), &other_normals.to_vec(), &other_obb2d.center);
         separating_axis_result
     }
 }
