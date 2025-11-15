@@ -76,16 +76,19 @@ fn calculate_normals_of_box2d(box_vertices: &[Vec2; 4]) -> [Vec2; 2] {
 }
 
 pub struct Polygon2d {
+    non_transformed_points: Vec<Vec2>,
     pub points: Vec<Vec2>,
     center: Vec2,
     normals: Vec<Vec2>
 }
 
 impl Polygon2d {
-    pub fn new(points: Vec<Vec2>) -> Self {
-        let normals = Polygon2d::calculate_normals(&points);
-        let center = Polygon2d::calculate_center(&points);
+    pub fn new(non_transformed_points: Vec<Vec2>, translation: Vec2, rotation: f32) -> Self {
+        let points = Self::get_transformed_points(&non_transformed_points, translation, rotation);
+        let normals = Self::calculate_normals(&points);
+        let center = Self::calculate_center(&points);
         Self {
+            non_transformed_points,
             points,
             center,
             normals
@@ -93,14 +96,23 @@ impl Polygon2d {
     }
 
     pub fn set_translation_rotation(&mut self, translation: Vec2, rotation: f32) {
+        self.points = Self::get_transformed_points(&self.non_transformed_points, translation, rotation);
+        self.normals = Self::calculate_normals(&self.points);
+        self.center = Self::calculate_center(&self.points);
+    }
+
+    fn get_transformed_points(non_transformed_points: &Vec<Vec2>, translation: Vec2, rotation: f32) -> Vec<Vec2> {
+        let mut points = Vec::new();
+        points.resize(non_transformed_points.len(), Vec2::new(0.0, 0.0));
+        
         let translation_matrix = Mat3::from_translation(translation);
         let rotation_matrix = Mat3::from_angle(rotation.to_radians());
         let combined_matrix = translation_matrix * rotation_matrix;
-        for i in 0..self.points.len() {
-            self.points[i] = combined_matrix.transform_point2(self.points[i]);
+        for i in 0..non_transformed_points.len() {
+            points[i] = combined_matrix.transform_point2(non_transformed_points[i]);
         }
-        self.normals = Polygon2d::calculate_normals(&self.points);
-        self.center = Polygon2d::calculate_center(&self.points);
+
+        points
     }
 
     fn calculate_center(points: &Vec<Vec2>) -> Vec2 {

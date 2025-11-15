@@ -138,12 +138,12 @@ impl World {
         self
     }
 
-    pub fn get_entities_with_component(&self, entity_list: &Vec<Entity>, component_id: u64) -> Vec<Entity> {
+    pub fn get_entities_with_component(&self, entity_list: &Vec<Entity>, component_id: u64, first_query: bool) -> Vec<Entity> {
         let mut result_entity_list: Vec<Entity> = Vec::new();
 
         let component_hash_map_option = self.components.get(&component_id);
         if let Some(component_hash_map) = component_hash_map_option {
-            if entity_list.is_empty() {
+            if first_query {
                 result_entity_list = self.entities.iter().cloned().filter(|entity| component_hash_map.contains_key(entity)).collect();
             }
             else {

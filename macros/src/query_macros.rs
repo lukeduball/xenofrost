@@ -127,8 +127,10 @@ impl ToTokens for QueryResult {
                 };
     
                 let mut entities: Vec<xenofrost::core::world::Entity> = Vec::new();
+                let mut first_search = true;
                 for component_id in #component_ids {
-                    entities = world.get_entities_with_component(&entities, component_id);
+                    entities = world.get_entities_with_component(&entities, component_id, first_search);
+                    first_search = false;
                 }
     
                 let mut query_result = QueryResult::new();
