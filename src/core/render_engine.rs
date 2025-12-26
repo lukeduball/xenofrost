@@ -1,43 +1,35 @@
 use std::{ops::Range, sync::Arc};
 
-use camera::Camera;
-use glam::Vec3;
 use mesh::Mesh;
 use winit::window::Window;
-use crate::core::world::{resource::Resource, Transform2d, query_resource, world_query};
-
-use super::world::World;
-
-//Required to allow query_macro to resolve types in this crate and external crates
-use crate as xenofrost;
 
 pub mod camera;
 pub mod texture;
 pub mod mesh;
 pub mod pipeline;
 
-#[derive(Resource)]
-pub struct AspectRatio {
-    pub aspect_ratio: f32
+pub fn create_command_encoder(device: &wgpu::Device, label: &str) -> wgpu::CommandEncoder {
+    let command_encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+        label: Some(label)
+    });
+
+    command_encoder
 }
 
-#[derive(Resource)]
-pub struct PrimaryRenderPass<'a> {
-    pub render_pass: Option<wgpu::RenderPass<'a>>
-}
-
-#[derive(Resource)]
 pub struct RenderEngine {
     pub surface: wgpu::Surface<'static>,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     pub config: wgpu::SurfaceConfiguration,
     pub window_width: u32,
-    pub window_height: u32
+    pub window_height: u32,
+    pub aspect_ratio: f32,
+    render_hook: fn() -> Result<(), wgpu::SurfaceError>,
+    resize_event_hook: Option<fn(&RenderEngine)>,
 }
 
 impl RenderEngine {
-    pub async fn new(window: Arc<Window>, width: u32, height: u32) -> RenderEngine {
+    pub async fn new(window: Arc<Window>, width: u32, height: u32, render_hook: fn()-> Result<(), wgpu::SurfaceError>) -> RenderEngine {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             #[cfg(not(target_arch="wasm32"))]
             backends: wgpu::Backends::PRIMARY,
@@ -90,34 +82,58 @@ impl RenderEngine {
 
         surface.configure(&device, &config);
 
+        let aspect_ratio = width as f32 / height as f32;
+
         RenderEngine {
             surface,
             device,
             queue,
             config,
             window_width: width,
-            window_height: height
+            window_height: height,
+            aspect_ratio,
+            render_hook,
+            resize_event_hook: None,
         }
     }
 
-    pub fn initialize_additional_resources(&self, world: &mut World) {
-        //Add any applicable shared resources related to the render engine
-        world.add_resource(PrimaryRenderPass {render_pass: None} );
-
-        world.add_resource(AspectRatio {
-            aspect_ratio: self.window_width as f32 / self.window_height as f32
-        });
+    pub fn register_resize_event_hook(&mut self, hook: fn(&RenderEngine)) {
+        self.resize_event_hook = Some(hook);
     }
 
-    pub fn render_frame_setup(&self, world: &mut World) -> Result<(wgpu::SurfaceTexture, wgpu::CommandEncoder), wgpu::SurfaceError> {
+//fn render_world(&self) -> Result<(), wgpu::SurfaceError> {
+//    let (output, encoder) = self.render_frame_setup()?;
+//
+//    //TODO add the hook for render systems from applications
+//    //for render_system in self.render_systems.iter() {
+//    //    render_system(world);
+//    //}
+//
+//    self.render_frame_present(output, encoder);
+//
+//    Ok(())
+//}
+
+    pub fn render(&mut self) -> bool {
+        let render_result = (self.render_hook)();
+        match render_result
+        {
+            Ok(_) => {},
+            Err(wgpu::SurfaceError::Lost) => {
+                self.recover_window();
+            },
+            Err(wgpu::SurfaceError::OutOfMemory) => return false,
+            Err(e) => eprintln!("{:?}", e),
+        }
+
+        return true
+    }
+
+    pub fn render_frame_setup<'a>(&self, encoder: &'a mut wgpu::CommandEncoder) -> Result<(wgpu::RenderPass<'a>, wgpu::SurfaceTexture), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
-        
-        let primary_render_pass = query_resource!(world, PrimaryRenderPass).unwrap();
 
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Render Encoder") });
-
-        primary_render_pass.data_mut().render_pass = Some(encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+        let render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Render Pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: &view,
@@ -135,42 +151,35 @@ impl RenderEngine {
             depth_stencil_attachment: None,
             occlusion_query_set: None,
             timestamp_writes: None,
-        }));
+        });
 
-        Ok((output, encoder))
+        Ok((render_pass, output))
     }
 
-    pub fn render_frame_present(&self, world: &mut World, output: wgpu::SurfaceTexture, encoder: wgpu::CommandEncoder) {
-        let primary_render_pass = query_resource!(world, PrimaryRenderPass).unwrap();
+    pub fn render_frame_present(&self, render_pass: wgpu::RenderPass, output: wgpu::SurfaceTexture, encoder: wgpu::CommandEncoder) {
 
         //Drop the render pass so that the render pass can be completed and used
-        primary_render_pass.data_mut().render_pass = None;
+        drop(render_pass);
+
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
     }
 
-    pub fn recover_window(&mut self, world: &mut World) {
-        self.resize(world, self.window_width, self.window_height);
+    pub fn recover_window(&mut self) {
+        self.resize(self.window_width, self.window_height);
     }
 
-    pub fn resize(&mut self, world: &mut World, new_width: u32, new_height: u32) {
-        let aspect_ratio = query_resource!(world, AspectRatio).unwrap();
-            
+    pub fn resize(&mut self, new_width: u32, new_height: u32) {
         self.window_width = new_width;
         self.window_height = new_height;
         self.config.width = new_width;
         self.config.height = new_height;
-        aspect_ratio.data_mut().aspect_ratio = new_width as f32 / new_height as f32;
+        self.aspect_ratio = new_width as f32 / new_height as f32;
         self.surface.configure(&self.device, &self.config);
 
-        let camera_query = world_query!(Transform2d, mut Camera);
-        for (_, transform2d, camera) in camera_query(world).iter() {
-            camera.data_mut().update_aspect_ratio(aspect_ratio.data().aspect_ratio);
-            camera.data_mut().update_uniform_buffer(
-                Vec3::new(transform2d.data().translation.x, transform2d.data().translation.y, -1.0),
-                Vec3::new(0.0, 0.0, 1.0),
-                &self.queue
-            );
+        //Call the resize hook function if its been registered with the Render Engine
+        if let Some(resize_hook) = self.resize_event_hook {
+            (resize_hook)(self);
         }
     }
 }
@@ -194,3 +203,5 @@ where 'b: 'a,
         self.draw_mesh_instanced(mesh, 0..1, camera_bind_group);
     }
 }
+
+pub use wgpu;

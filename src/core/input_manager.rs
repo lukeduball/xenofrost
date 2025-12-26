@@ -4,8 +4,6 @@ use glam::{IVec2, Vec2};
 use winit::{event::{KeyEvent, WindowEvent}, keyboard::PhysicalKey};
 use winit_converter::convert_winit_keycode;
 
-use super::world::resource::Resource;
-
 mod winit_converter;
 
 pub struct Mouse {
@@ -55,7 +53,6 @@ impl KeyState {
     }
 }
 
-#[derive(Resource)]
 pub struct InputManager {
     key_binding: HashMap<&'static str, KeyCode>,
     key_state: HashMap<KeyCode, KeyState>,

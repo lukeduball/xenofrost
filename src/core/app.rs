@@ -1,9 +1,8 @@
 use std::{sync::Arc, time::Instant};
 
 use winit::{application::ApplicationHandler, event::{ElementState, KeyEvent, WindowEvent}, event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy}, keyboard::{KeyCode, PhysicalKey}, window::WindowId};
-use xenofrost_macros::query_resource;
 
-use super::{input_manager::InputManager, render_engine::RenderEngine, world::World};
+use super::{input_manager::InputManager, render_engine::RenderEngine};
 
 //Micro seconds needed to be used because the integer duration of ms could be zero causing no updates for many frames
 const FRAMES_PER_UPDATE_MICRO_SECONDS: u128 = 1600;
@@ -12,27 +11,27 @@ const FRAMES_PER_UPDATE_MICRO_SECONDS: u128 = 1600;
 pub struct App {
     app_name: &'static str,
     window: Option<Arc<winit::window::Window>>,
-    world: World,
+    startup_hook: fn(),
+    update_hook: fn(),
+    render_hook: fn() -> Result<(), wgpu::SurfaceError>,
+    input_manager: InputManager,
+    render_engine: Option<RenderEngine>,
 
-    startup_systems: Vec<Box<dyn Fn(&mut World)>>,
-    update_systems: Vec<Box<dyn Fn(&mut World)>>,
-    prepare_systems: Vec<Box<dyn Fn(&mut World)>>,
-    render_systems: Vec<Box<dyn Fn(&mut World)>>,
     is_startup: bool,
     previous_update_time: Instant,
     lag: u128,
 }
 
 impl App {
-    pub fn new(app_name: &'static str) -> Self {
+    pub fn new(app_name: &'static str, startup_hook: fn(), update_hook: fn(), render_hook: fn() -> Result<(), wgpu::SurfaceError>) -> Self {
         Self {
             app_name,
             window: None,
-            world: World::new(),
-            startup_systems: Vec::new(),
-            update_systems: Vec::new(),
-            prepare_systems: Vec::new(),
-            render_systems: Vec::new(),
+            startup_hook,
+            update_hook,
+            render_hook,
+            input_manager: InputManager::new(),
+            render_engine: None,
             is_startup: true,
             previous_update_time: Instant::now(),
             lag: 0,
@@ -47,84 +46,11 @@ impl App {
         _ = event_loop.run_app(&mut app_runner);
     }
 
-    fn update(&mut self) {
-        if self.is_startup {
-            for startup_system in self.startup_systems.iter() {
-                startup_system(&mut self.world);
-            }
-            self.is_startup = false;
-        }
-
-        for update_system in self.update_systems.iter() {
-            update_system(&mut self.world);
-        }
-
-        for prepare_system in self.prepare_systems.iter() {
-            prepare_system(&mut self.world);
-        }
-    }
-
-    pub fn render(&mut self) -> bool {
-        let render_result = self.render_world();
-        match render_result
-        {
-            Ok(_) => {},
-            Err(wgpu::SurfaceError::Lost) => {
-                let world = &mut self.world;
-                let render_engine = query_resource!(world, RenderEngine).unwrap();
-                render_engine.data_mut().recover_window(world);
-            },
-            Err(wgpu::SurfaceError::OutOfMemory) => return false,
-            Err(e) => eprintln!("{:?}", e),
-        }
-
-        return true
-    }
-
-    fn render_world(&mut self) -> Result<(), wgpu::SurfaceError> {
-        let world = &mut self.world;
-        let render_engine = query_resource!(world, RenderEngine).unwrap();
-
-        let (output, encoder) = render_engine.data().render_frame_setup(world)?;
-
-        for render_system in self.render_systems.iter() {
-            render_system(world);
-        }
-
-        render_engine.data().render_frame_present(world, output, encoder);
-
-        Ok(())
-    }
-
     pub fn resize(&mut self, new_width: u32, new_height: u32) {
         if new_width > 0 && new_height > 0 {
-            let world = &mut self.world;
-            let render_engine = query_resource!(world, RenderEngine).unwrap();
-
-            render_engine.data_mut().resize(world, new_width, new_height);
+            self.render_engine.as_mut().unwrap().resize(new_width, new_height);
         }
     }
-
-    pub fn add_startup_system(&mut self, function: Box<dyn Fn(&mut World)>) {
-        self.startup_systems.push(function);
-    }
-
-    pub fn add_update_system(&mut self, function: Box<dyn Fn(&mut World)>) {
-        self.update_systems.push(function);
-    }
-
-    pub fn add_prepare_system(&mut self, function: Box<dyn Fn(&mut World)>) {
-        self.prepare_systems.push(function);
-    }
-
-    pub fn add_render_system(&mut self, function: Box<dyn Fn(&mut World)>) {
-        self.render_systems.push(function);
-    }
-
-    pub fn register_app_extension<T: AppExtension>(&mut self, extension: T) {
-        extension.build(self);
-    }
-
 }
 
 //Used by wasm32 build so warning was turned off
@@ -176,14 +102,12 @@ impl<'a> ApplicationHandler<EngineEvent> for AppRunner<'a> {
     
         let arc_window = Arc::new(window);
 
-        self.app.world.add_resource(InputManager::new());
-
         self.app.window = Some(Arc::clone(&arc_window));
 
         #[cfg(target_arch="wasm32")]
         {
             let event_loop_proxy = self.event_loop_proxy.take();
-            let render_engine_fut = RenderEngine::new(Arc::clone(&arc_window), size.width, size.height);
+            let render_engine_fut = RenderEngine::new(Arc::clone(&arc_window), size.width, size.height, self.app.render_hook);
             wasm_bindgen_futures::spawn_local(async move {
                 let render_engine = render_engine_fut.await;
                 assert!(event_loop_proxy.unwrap().send_event(EngineEvent::CreateGraphicsEvent(render_engine)).is_ok());
@@ -192,24 +116,20 @@ impl<'a> ApplicationHandler<EngineEvent> for AppRunner<'a> {
 
         #[cfg(not(target_arch="wasm32"))]
         {
-            let render_engine = pollster::block_on(RenderEngine::new(arc_window, size.width, size.height));
-            render_engine.initialize_additional_resources(&mut self.app.world);
-            self.app.world.add_resource(render_engine);
+            let render_engine = pollster::block_on(RenderEngine::new(arc_window, size.width, size.height, self.app.render_hook));
+            self.app.render_engine = Some(render_engine);
         }
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _window_id: WindowId, event: WindowEvent) {
-        let world = &mut self.app.world;
-        let scale_factor = self.app.window.as_ref().unwrap().scale_factor();
-
-        let render_engine = query_resource!(world, RenderEngine);
-        if let None = render_engine {
+        if let None = self.app.render_engine {
             //Wait until the graphics have been created
             return;
         }
+        let scale_factor = self.app.window.as_ref().unwrap().scale_factor();
 
-        let input_manager = query_resource!(world, InputManager).unwrap();
-        input_manager.data_mut().process_input(&event, scale_factor);
+        self.app.input_manager.process_input(&event, scale_factor);
+        (self.app.startup_hook)();
 
         match event {
             WindowEvent::CloseRequested | WindowEvent::KeyboardInput { 
@@ -231,12 +151,12 @@ impl<'a> ApplicationHandler<EngineEvent> for AppRunner<'a> {
                 self.app.lag += elapsed_time.as_micros();
 
                 while self.app.lag > FRAMES_PER_UPDATE_MICRO_SECONDS {
-                    input_manager.data_mut().process_button_press_release_data();
-                    self.app.update();
+                    self.app.input_manager.process_button_press_release_data();
+                    (self.app.update_hook)();
                     self.app.lag -= FRAMES_PER_UPDATE_MICRO_SECONDS;
                 }
 
-                if !self.app.render() {
+                if !self.app.render_engine.as_mut().unwrap().render() {
                     event_loop.exit();
                 }
                 self.app.window.as_ref().unwrap().request_redraw();
@@ -248,13 +168,8 @@ impl<'a> ApplicationHandler<EngineEvent> for AppRunner<'a> {
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: EngineEvent) {
         match event {
             EngineEvent::CreateGraphicsEvent(render_engine) => {
-                render_engine.initialize_additional_resources(&mut self.app.world);
-                self.app.world.add_resource(render_engine);
+                self.app.render_engine = Some(render_engine);
             }
         }
     }
-}
-
-pub trait AppExtension {
-    fn build(&self, app: &mut App);
 }

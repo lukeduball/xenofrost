@@ -2371,16 +2371,6 @@ dependencies = [
  "web-sys",
  "wgpu",
  "winit",
- "xenofrost_macros",
-]
-
-[[package]]
-name = "xenofrost_macros"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.72",
 ]
 
 [[package]]

@@ -1,7 +1,5 @@
 use wgpu::util::DeviceExt;
 
-use crate::core::world::resource::Resource;
-
 pub trait Vertex {
     fn desc() -> wgpu::VertexBufferLayout<'static>;
 }
@@ -28,7 +26,6 @@ impl Vertex for PositionVertex {
     }
 }
 
-#[derive(Resource)]
 pub struct AtlasQuadMesh {
     pub mesh: Mesh
 }
@@ -97,7 +94,6 @@ impl Vertex for ModelVertex {
     }
 }
 
-#[derive(Resource)]
 pub struct QuadMesh {
     pub mesh: Mesh
 }
