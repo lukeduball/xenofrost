@@ -24,12 +24,11 @@ pub struct RenderEngine {
     pub window_width: u32,
     pub window_height: u32,
     pub aspect_ratio: f32,
-    render_hook: fn() -> Result<(), wgpu::SurfaceError>,
     resize_event_hook: Option<fn(&RenderEngine)>,
 }
 
 impl RenderEngine {
-    pub async fn new(window: Arc<Window>, width: u32, height: u32, render_hook: fn()-> Result<(), wgpu::SurfaceError>) -> RenderEngine {
+    pub async fn new(window: Arc<Window>, width: u32, height: u32) -> RenderEngine {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             #[cfg(not(target_arch="wasm32"))]
             backends: wgpu::Backends::PRIMARY,
@@ -92,7 +91,6 @@ impl RenderEngine {
             window_width: width,
             window_height: height,
             aspect_ratio,
-            render_hook,
             resize_event_hook: None,
         }
     }
@@ -114,8 +112,7 @@ impl RenderEngine {
 //    Ok(())
 //}
 
-    pub fn render(&mut self) -> bool {
-        let render_result = (self.render_hook)();
+    pub fn successful_render(&mut self, render_result: Result<(), wgpu::SurfaceError>) -> bool {
         match render_result
         {
             Ok(_) => {},

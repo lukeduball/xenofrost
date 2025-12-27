@@ -116,7 +116,7 @@ impl<'a> ApplicationHandler<EngineEvent> for AppRunner<'a> {
 
         #[cfg(not(target_arch="wasm32"))]
         {
-            let render_engine = pollster::block_on(RenderEngine::new(arc_window, size.width, size.height, self.app.render_hook));
+            let render_engine = pollster::block_on(RenderEngine::new(arc_window, size.width, size.height));
             self.app.render_engine = Some(render_engine);
         }
     }
@@ -156,7 +156,8 @@ impl<'a> ApplicationHandler<EngineEvent> for AppRunner<'a> {
                     self.app.lag -= FRAMES_PER_UPDATE_MICRO_SECONDS;
                 }
 
-                if !self.app.render_engine.as_mut().unwrap().render() {
+                let app_render_result = (self.app.render_hook)();
+                if !self.app.render_engine.as_mut().unwrap().successful_render(app_render_result) {
                     event_loop.exit();
                 }
                 self.app.window.as_ref().unwrap().request_redraw();
