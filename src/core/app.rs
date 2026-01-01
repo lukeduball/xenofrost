@@ -8,30 +8,47 @@ use super::{input_manager::InputManager, render_engine::RenderEngine};
 const FRAMES_PER_UPDATE_MICRO_SECONDS: u128 = 1600;
 
 #[allow(dead_code)]
-pub struct App {
+pub struct App<WorldData, RenderData> {
     app_name: &'static str,
     window: Option<Arc<winit::window::Window>>,
-    startup_hook: fn(),
-    update_hook: fn(),
-    render_hook: fn() -> Result<(), wgpu::SurfaceError>,
+    startup_hook: fn(&mut WorldData, &mut RenderData, &mut InputManager, &RenderEngine),
+    resize_hook: fn(&mut WorldData, &mut RenderData, &RenderEngine),
+    update_hook: fn(&mut WorldData, &InputManager),
+    prepare_hook: fn(&mut WorldData, &mut RenderData, &RenderEngine),
+    render_hook: fn(&RenderData, &RenderEngine) -> Result<(), wgpu::SurfaceError>,
     input_manager: InputManager,
     render_engine: Option<RenderEngine>,
+    world_data: WorldData,
+    render_data: RenderData,
 
     is_startup: bool,
     previous_update_time: Instant,
     lag: u128,
 }
 
-impl App {
-    pub fn new(app_name: &'static str, startup_hook: fn(), update_hook: fn(), render_hook: fn() -> Result<(), wgpu::SurfaceError>) -> Self {
+impl<WorldData, RenderData> App<WorldData, RenderData> {
+    pub fn new(
+        app_name: &'static str, 
+        world_data: WorldData, 
+        render_data: RenderData, 
+        startup_hook: fn(&mut WorldData, &mut RenderData, &mut InputManager, &RenderEngine),
+        resize_hook: fn(&mut WorldData, &mut RenderData, &RenderEngine), 
+        update_hook: fn(&mut WorldData, &InputManager),
+        prepare_hook: fn(&mut WorldData, &mut RenderData, &RenderEngine), 
+        render_hook: fn(&RenderData, &RenderEngine) -> Result<(), wgpu::SurfaceError>
+    ) -> Self {
         Self {
             app_name,
             window: None,
             startup_hook,
+            resize_hook,
             update_hook,
+            prepare_hook,
             render_hook,
             input_manager: InputManager::new(),
             render_engine: None,
+            world_data,
+            render_data,
             is_startup: true,
             previous_update_time: Instant::now(),
             lag: 0,
@@ -61,13 +78,13 @@ enum EngineEvent {
 
 //Event loop proxy is used by wasm32 so warning was turned off
 #[allow(dead_code)]
-struct AppRunner<'a> {
-    app: &'a mut App,
+struct AppRunner<'a, WorldData, RenderData> {
+    app: &'a mut App<WorldData, RenderData>,
     event_loop_proxy: Option<EventLoopProxy<EngineEvent>>
 }
 
-impl<'a> AppRunner<'a> {
-    fn new(app: &'a mut App, event_loop: &EventLoop<EngineEvent>) -> Self {
+impl<'a, WorldData, RenderData> AppRunner<'a, WorldData, RenderData> {
+    fn new(app: &'a mut App<WorldData, RenderData>, event_loop: &EventLoop<EngineEvent>) -> Self {
         Self {
             app,
             event_loop_proxy: Some(event_loop.create_proxy())
@@ -75,7 +92,7 @@ impl<'a> AppRunner<'a> {
     }
 }
 
-impl<'a> ApplicationHandler<EngineEvent> for AppRunner<'a> {
+impl<'a, WorldData, RenderData> ApplicationHandler<EngineEvent> for AppRunner<'a, WorldData, RenderData> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let window = event_loop.create_window(winit::window::Window::default_attributes()).unwrap();
         //wasm32 mutates this variable to statically set the window size
@@ -128,8 +145,12 @@ impl<'a> ApplicationHandler<EngineEvent> for AppRunner<'a> {
         }
         let scale_factor = self.app.window.as_ref().unwrap().scale_factor();
 
+        if self.app.is_startup {
+            (self.app.startup_hook)(&mut self.app.world_data, &mut self.app.render_data, &mut self.app.input_manager, &self.app.render_engine.as_ref().unwrap());
+            self.app.is_startup = false;
+        }
+
         self.app.input_manager.process_input(&event, scale_factor);
-        (self.app.startup_hook)();
 
         match event {
             WindowEvent::CloseRequested | WindowEvent::KeyboardInput { 
@@ -143,6 +164,7 @@ impl<'a> ApplicationHandler<EngineEvent> for AppRunner<'a> {
             WindowEvent::Resized(physical_size) => {
                 #[cfg(not(target_arch="wasm32"))] {
                     self.app.resize(physical_size.width, physical_size.height);
+                    (self.app.resize_hook)(&mut self.app.world_data, &mut self.app.render_data, &self.app.render_engine.as_ref().unwrap());
                 }
             },
             WindowEvent::RedrawRequested => {
@@ -152,11 +174,12 @@ impl<'a> ApplicationHandler<EngineEvent> for AppRunner<'a> {
 
                 while self.app.lag > FRAMES_PER_UPDATE_MICRO_SECONDS {
                     self.app.input_manager.process_button_press_release_data();
-                    (self.app.update_hook)();
+                    (self.app.update_hook)(&mut self.app.world_data, &self.app.input_manager);
                     self.app.lag -= FRAMES_PER_UPDATE_MICRO_SECONDS;
+                    (self.app.prepare_hook)(&mut self.app.world_data, &mut self.app.render_data, &self.app.render_engine.as_mut().unwrap());
                 }
 
-                let app_render_result = (self.app.render_hook)();
+                let app_render_result = (self.app.render_hook)(&self.app.render_data, &self.app.render_engine.as_ref().unwrap());
                 if !self.app.render_engine.as_mut().unwrap().successful_render(app_render_result) {
                     event_loop.exit();
                 }

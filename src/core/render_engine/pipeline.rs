@@ -203,6 +203,7 @@ pub fn create_debug_lines_pipeline2d(
     };
     let shader_module = create_shader(device, "Debug Lines 2d Shader", include_str_from_project_path!("/res/shaders/debug_lines_shader2d.wgsl"));
     let mut pipeline_descriptor = create_default_pipeline2d_descriptor(config, &pipeline_layout_descriptor, &shader_module);
+    pipeline_descriptor.label = "Debug Lines Pipeline2d";
     pipeline_descriptor.vertex = VertexState { module: &shader_module, entry_point: "vs_main", buffers: vec![PositionVertex::desc()] };
     pipeline_descriptor.primitive.topology = wgpu::PrimitiveTopology::LineStrip;
 
@@ -220,6 +221,7 @@ pub fn create_atlas_pipeline2d(
     let pipeline_layout_descriptor = create_default_pipeline2d_bind_group_layout(camera_bind_group_layout, texture_bind_group_layout);
     let shader_module = create_shader(device, "Atlas 2d Shader", include_str_from_project_path!("/res/shaders/atlas_shader2d.wgsl"));
     let mut pipeline_descriptor = create_default_pipeline2d_descriptor(config, &pipeline_layout_descriptor, &shader_module);
+    pipeline_descriptor.label = "Atlas Pipeline 2d";
     pipeline_descriptor.vertex = VertexState { module: &shader_module, entry_point: "vs_main", buffers: vec![PositionVertex::desc(), InstanceAtlas::desc()] };
 
     let pipeline = create_render_pipeline_from_descriptor(device, pipeline_descriptor);

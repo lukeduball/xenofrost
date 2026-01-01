@@ -26,18 +26,6 @@ impl Vertex for PositionVertex {
     }
 }
 
-pub struct AtlasQuadMesh {
-    pub mesh: Mesh
-}
-
-impl AtlasQuadMesh {
-    pub fn new(device: &wgpu::Device) -> Self {
-        Self {
-            mesh: create_atlas_quad_mesh(device)
-        }
-    }
-}
-
 const ATLAS_QUAD_VERTICES: &[PositionVertex] = &[
     PositionVertex {position: [-0.5, 0.5, 0.0]},
     PositionVertex {position: [-0.5, -0.5, 0.0]},
@@ -45,7 +33,7 @@ const ATLAS_QUAD_VERTICES: &[PositionVertex] = &[
     PositionVertex {position: [0.5, -0.5, 0.0]},
 ];
 
-fn create_atlas_quad_mesh(device: &wgpu::Device) -> Mesh {
+pub fn create_atlas_quad_mesh(device: &wgpu::Device) -> Mesh {
     let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("Atlas Quad Vertex Buffer"),
         contents: bytemuck::cast_slice(ATLAS_QUAD_VERTICES),
@@ -94,18 +82,6 @@ impl Vertex for ModelVertex {
     }
 }
 
-pub struct QuadMesh {
-    pub mesh: Mesh
-}
-
-impl QuadMesh {
-    pub fn new(device: &wgpu::Device) -> Self {
-        Self {
-            mesh: create_quad_mesh(device)
-        }
-    }
-}
-
 pub struct Mesh {
     pub name: String,
     pub vertex_buffer: wgpu::Buffer,
@@ -125,7 +101,7 @@ const QUAD_INDICES: &[u16] = &[
     1, 3, 2
 ];
 
-fn create_quad_mesh(device: &wgpu::Device) -> Mesh {
+pub fn create_quad_mesh(device: &wgpu::Device) -> Mesh {
 
     let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("Quad Vertex Buffer"),

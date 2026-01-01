@@ -3,7 +3,8 @@ use std::{ops::Range, sync::Arc};
 use mesh::Mesh;
 use winit::window::Window;
 
-pub mod camera;
+pub mod buffer;
+pub mod render_camera;
 pub mod texture;
 pub mod mesh;
 pub mod pipeline;
@@ -24,7 +25,6 @@ pub struct RenderEngine {
     pub window_width: u32,
     pub window_height: u32,
     pub aspect_ratio: f32,
-    resize_event_hook: Option<fn(&RenderEngine)>,
 }
 
 impl RenderEngine {
@@ -91,26 +91,8 @@ impl RenderEngine {
             window_width: width,
             window_height: height,
             aspect_ratio,
-            resize_event_hook: None,
         }
     }
-
-    pub fn register_resize_event_hook(&mut self, hook: fn(&RenderEngine)) {
-        self.resize_event_hook = Some(hook);
-    }
-
-//fn render_world(&self) -> Result<(), wgpu::SurfaceError> {
-//    let (output, encoder) = self.render_frame_setup()?;
-//
-//    //TODO add the hook for render systems from applications
-//    //for render_system in self.render_systems.iter() {
-//    //    render_system(world);
-//    //}
-//
-//    self.render_frame_present(output, encoder);
-//
-//    Ok(())
-//}
 
     pub fn successful_render(&mut self, render_result: Result<(), wgpu::SurfaceError>) -> bool {
         match render_result
@@ -153,11 +135,7 @@ impl RenderEngine {
         Ok((render_pass, output))
     }
 
-    pub fn render_frame_present(&self, render_pass: wgpu::RenderPass, output: wgpu::SurfaceTexture, encoder: wgpu::CommandEncoder) {
-
-        //Drop the render pass so that the render pass can be completed and used
-        drop(render_pass);
-
+    pub fn render_frame_present(&self, output: wgpu::SurfaceTexture, encoder: wgpu::CommandEncoder) {
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
     }
@@ -173,11 +151,6 @@ impl RenderEngine {
         self.config.height = new_height;
         self.aspect_ratio = new_width as f32 / new_height as f32;
         self.surface.configure(&self.device, &self.config);
-
-        //Call the resize hook function if its been registered with the Render Engine
-        if let Some(resize_hook) = self.resize_event_hook {
-            (resize_hook)(self);
-        }
     }
 }
 

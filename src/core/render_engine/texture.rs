@@ -1,4 +1,5 @@
 use image::GenericImageView;
+use wgpu::BindGroupDescriptor;
 
 pub struct Texture {
     pub _texture: wgpu::Texture,
@@ -102,4 +103,29 @@ pub fn create_texture_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGrou
     });
 
     texture_bind_group_layout
+}
+
+pub fn create_texture_bind_group(
+    device: &wgpu::Device,
+    label: &str, 
+    bind_group_layout: &wgpu::BindGroupLayout, 
+    texture_view: &wgpu::TextureView, 
+    texture_sampler: &wgpu::Sampler
+) -> wgpu::BindGroup {
+    let texture_bind_group = device.create_bind_group(&BindGroupDescriptor {
+        label: Some(label),
+        layout: bind_group_layout,
+        entries: &[
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(texture_view)
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: wgpu::BindingResource::Sampler(texture_sampler)
+            }
+        ],
+    });
+
+    texture_bind_group
 }
