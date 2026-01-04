@@ -1,15 +1,14 @@
 use std::num::NonZero;
 
 use glam::{Mat4, Vec2};
-use wgpu::{BindGroupLayout, ShaderModuleDescriptor};
 
-use crate::core::{render_engine::{mesh::{Mesh, PositionVertex}}, utilities::include_str_from_project_path};
+use crate::core::{render_engine::{buffer::Buffer, mesh::{Mesh, PositionVertex}}, utilities::include_str_from_project_path};
 
 use super::mesh::{ModelVertex, Vertex};
 
 pub struct PipelineLayoutDescriptor<'a> {
     label: &'a str,
-    bind_group_layouts: Vec<&'a BindGroupLayout>,
+    bind_group_layouts: Vec<&'a wgpu::BindGroupLayout>,
 }
 
 impl<'a> PipelineLayoutDescriptor<'a> {
@@ -48,15 +47,15 @@ pub struct RenderPipelineDescriptor<'a> {
 }
 
 pub fn create_shader(device: &wgpu::Device, label: &str, shader_path: &str) -> wgpu::ShaderModule {
-    device.create_shader_module(ShaderModuleDescriptor {
+    device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: Some(label),
         source: wgpu::ShaderSource::Wgsl(shader_path.into())
     })
 }
 
 pub fn create_default_pipeline2d_bind_group_layout<'a>(
-    camera_bind_group_layout: &'a BindGroupLayout, 
-    texture_bind_group_layout: &'a BindGroupLayout
+    camera_bind_group_layout: &'a wgpu::BindGroupLayout, 
+    texture_bind_group_layout: &'a wgpu::BindGroupLayout
 ) -> PipelineLayoutDescriptor<'a> {
     let pipeline_layout_descriptor = PipelineLayoutDescriptor {
         label: "Default Pipeline2d Layout",
@@ -182,8 +181,8 @@ impl InstanceTransform {
 pub fn create_default_pipeline2d(
     device: &wgpu::Device, 
     config: &wgpu::SurfaceConfiguration, 
-    camera_bind_group_layout: &BindGroupLayout, 
-    texture_bind_group_layout: &BindGroupLayout
+    camera_bind_group_layout: &wgpu::BindGroupLayout, 
+    texture_bind_group_layout: &wgpu::BindGroupLayout
 ) -> wgpu::RenderPipeline {
     let pipeline_2d_layout = create_default_pipeline2d_bind_group_layout(camera_bind_group_layout, texture_bind_group_layout);
     let shader_module = create_shader(device, "Default Pipeline 2d Shader", include_str_from_project_path!("/res/shaders/model_shader2d.wgsl"));
@@ -195,11 +194,13 @@ pub fn create_default_pipeline2d(
 pub fn create_debug_lines_pipeline2d(
     device: &wgpu::Device, 
     config: &wgpu::SurfaceConfiguration, 
-    camera_bind_group_layout: &BindGroupLayout
+    camera_bind_group_layout: &wgpu::BindGroupLayout,
+    color_bind_group_layout: &wgpu::BindGroupLayout,
 ) -> wgpu::RenderPipeline {
+
     let pipeline_layout_descriptor = PipelineLayoutDescriptor {
         label: "Debug Lines 2d Pipeline Layout",
-        bind_group_layouts: vec![camera_bind_group_layout]
+        bind_group_layouts: vec![camera_bind_group_layout, color_bind_group_layout]
     };
     let shader_module = create_shader(device, "Debug Lines 2d Shader", include_str_from_project_path!("/res/shaders/debug_lines_shader2d.wgsl"));
     let mut pipeline_descriptor = create_default_pipeline2d_descriptor(config, &pipeline_layout_descriptor, &shader_module);
@@ -215,8 +216,8 @@ pub fn create_debug_lines_pipeline2d(
 pub fn create_atlas_pipeline2d(
     device: &wgpu::Device,
     config: &wgpu::SurfaceConfiguration,
-    camera_bind_group_layout: &BindGroupLayout,
-    texture_bind_group_layout: &BindGroupLayout
+    camera_bind_group_layout: &wgpu::BindGroupLayout,
+    texture_bind_group_layout: &wgpu::BindGroupLayout
 ) -> wgpu::RenderPipeline {
     let pipeline_layout_descriptor = create_default_pipeline2d_bind_group_layout(camera_bind_group_layout, texture_bind_group_layout);
     let shader_module = create_shader(device, "Atlas 2d Shader", include_str_from_project_path!("/res/shaders/atlas_shader2d.wgsl"));
@@ -294,8 +295,8 @@ pub fn create_color_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupL
     color_bind_group_layout
 }
 
-pub struct DebugLineInstance {
+pub struct InstanceDebugLine {
     pub mesh: Mesh,
-    pub color_uniform: wgpu::Buffer,
+    pub color_uniform: Buffer,
     pub color_bind_group: wgpu::BindGroup
 }

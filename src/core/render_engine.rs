@@ -174,4 +174,5 @@ where 'b: 'a,
     }
 }
 
+pub use bytemuck;
 pub use wgpu;

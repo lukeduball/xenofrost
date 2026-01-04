@@ -1,7 +1,7 @@
 use core::f32;
 
 use bytemuck::Zeroable;
-use glam::{Mat3, Vec2};
+use glam::{Mat3, Vec2, Vec3};
 
 pub struct Intersection2dResult {
     pub collision: bool,
@@ -79,11 +79,12 @@ pub struct Polygon2d {
     non_transformed_points: Vec<Vec2>,
     pub points: Vec<Vec2>,
     center: Vec2,
-    normals: Vec<Vec2>
+    normals: Vec<Vec2>,
+    pub debug_color: Vec3
 }
 
 impl Polygon2d {
-    pub fn new(non_transformed_points: Vec<Vec2>, translation: Vec2, rotation: f32) -> Self {
+    pub fn new(non_transformed_points: Vec<Vec2>, translation: Vec2, rotation: f32, debug_color: Vec3) -> Self {
         let points = Self::get_transformed_points(&non_transformed_points, translation, rotation);
         let normals = Self::calculate_normals(&points);
         let center = Self::calculate_center(&points);
@@ -91,7 +92,8 @@ impl Polygon2d {
             non_transformed_points,
             points,
             center,
-            normals
+            normals,
+            debug_color
         }
     }
 

@@ -2,13 +2,13 @@ use std::ops::{Deref, DerefMut};
 
 use wgpu::{BufferUsages, util::DeviceExt};
 
-pub struct Buffer<'a> {
-    label: &'a str,
+pub struct Buffer {
+    label: String,
     usage: wgpu::BufferUsages,
     buffer: wgpu::Buffer
 }
 
-impl<'a> Deref for Buffer<'a> {
+impl Deref for Buffer {
     type Target = wgpu::Buffer;
 
     fn deref(&self) -> &Self::Target {
@@ -16,10 +16,10 @@ impl<'a> Deref for Buffer<'a> {
     }
 }
 
-impl<'a> Buffer<'a> {
-    pub fn empty_buffer(device: &wgpu::Device, label: &'a str, size: u64, usage: wgpu::BufferUsages) -> Self {
+impl Buffer {
+    pub fn empty_buffer(device: &wgpu::Device, label: String, size: u64, usage: wgpu::BufferUsages) -> Self {
         let buffer = device.create_buffer(&wgpu::BufferDescriptor { 
-            label: Some(label), 
+            label: Some(label.as_str()), 
             size, 
             usage, 
             mapped_at_creation: false 
@@ -28,9 +28,9 @@ impl<'a> Buffer<'a> {
         Self { label, usage, buffer }
     }
 
-    pub fn create_buffer_during_init(device: &wgpu::Device, label: &'a str, contents: &[u8], usage: wgpu::BufferUsages) -> Self {
+    pub fn create_buffer_during_init(device: &wgpu::Device, label: String, contents: &[u8], usage: wgpu::BufferUsages) -> Self {
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some(label),
+            label: Some(label.as_str()),
             contents,
             usage,
         });
@@ -42,7 +42,7 @@ impl<'a> Buffer<'a> {
         if self.buffer.size() != (contents.len() * size_of::<u8>()) as u64 {
             self.buffer.destroy();
             self.buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some(self.label),
+                label: Some(self.label.as_str()),
                 contents,
                 usage: self.usage
             });
@@ -52,12 +52,12 @@ impl<'a> Buffer<'a> {
     }
 }
 
-pub struct VecBuffer<'a, T: bytemuck::Zeroable + bytemuck::Pod> {
+pub struct VecBuffer<T: bytemuck::Zeroable + bytemuck::Pod> {
     contents: Vec<T>,
-    buffer: Buffer<'a>,
+    buffer: Buffer,
 }
 
-impl<'a, T: bytemuck::Zeroable + bytemuck::Pod> Deref for VecBuffer<'a, T> {
+impl<'a, T: bytemuck::Zeroable + bytemuck::Pod> Deref for VecBuffer<T> {
     type Target = Vec<T>;
 
     fn deref(&self) -> &Self::Target {
@@ -65,17 +65,17 @@ impl<'a, T: bytemuck::Zeroable + bytemuck::Pod> Deref for VecBuffer<'a, T> {
     }
 }
 
-impl<'a, T: bytemuck::Zeroable + bytemuck::Pod> DerefMut for VecBuffer<'a, T> {
+impl<'a, T: bytemuck::Zeroable + bytemuck::Pod> DerefMut for VecBuffer<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.contents
     }
 }
 
-impl<'a, T: bytemuck::Zeroable + bytemuck::Pod> VecBuffer<'a, T> {
-    pub fn new(device: &wgpu::Device, label: &'a str, usage: BufferUsages) -> Self {
+impl<'a, T: bytemuck::Zeroable + bytemuck::Pod> VecBuffer<T> {
+    pub fn new(device: &wgpu::Device, label: &str, usage: BufferUsages) -> Self {
         Self { 
             contents: Vec::new(), 
-            buffer: Buffer::empty_buffer(device, label, 1, usage) 
+            buffer: Buffer::empty_buffer(device, label.to_string(), 1, usage) 
         }
     }
 

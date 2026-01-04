@@ -1,4 +1,4 @@
-use wgpu::util::DeviceExt;
+use crate::core::render_engine::buffer::Buffer;
 
 pub trait Vertex {
     fn desc() -> wgpu::VertexBufferLayout<'static>;
@@ -34,17 +34,19 @@ const ATLAS_QUAD_VERTICES: &[PositionVertex] = &[
 ];
 
 pub fn create_atlas_quad_mesh(device: &wgpu::Device) -> Mesh {
-    let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Atlas Quad Vertex Buffer"),
-        contents: bytemuck::cast_slice(ATLAS_QUAD_VERTICES),
-        usage: wgpu::BufferUsages::VERTEX,
-    });
+    let vertex_buffer = Buffer::create_buffer_during_init(
+        device,
+        String::from("Atlas Quad Vertex Buffer"),
+        bytemuck::cast_slice(ATLAS_QUAD_VERTICES),
+        wgpu::BufferUsages::VERTEX,
+    );
 
-    let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Atlas Quad Index Buffer"),
-        contents: bytemuck::cast_slice(QUAD_INDICES),
-        usage: wgpu::BufferUsages::INDEX,
-    });
+    let index_buffer = Buffer::create_buffer_during_init(
+        device,
+        String::from("Atlas Quad Index Buffer"),
+        bytemuck::cast_slice(QUAD_INDICES),
+        wgpu::BufferUsages::INDEX,
+    );
 
     Mesh {
         name: String::from("Atlas Quad Mesh"),
@@ -84,8 +86,8 @@ impl Vertex for ModelVertex {
 
 pub struct Mesh {
     pub name: String,
-    pub vertex_buffer: wgpu::Buffer,
-    pub index_buffer: wgpu::Buffer,
+    pub vertex_buffer: Buffer,
+    pub index_buffer: Buffer,
     pub num_elements: u32,
 }
 
@@ -103,17 +105,19 @@ const QUAD_INDICES: &[u16] = &[
 
 pub fn create_quad_mesh(device: &wgpu::Device) -> Mesh {
 
-    let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Quad Vertex Buffer"),
-        contents: bytemuck::cast_slice(QUAD_VERTICES),
-        usage: wgpu::BufferUsages::VERTEX,
-    });
+    let vertex_buffer = Buffer::create_buffer_during_init(
+        device,
+        String::from("Quad Vertex Buffer"),
+        bytemuck::cast_slice(QUAD_VERTICES),
+        wgpu::BufferUsages::VERTEX,
+    );
 
-    let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Quad Index Buffer"),
-        contents: bytemuck::cast_slice(QUAD_INDICES),
-        usage: wgpu::BufferUsages::INDEX,
-    });
+    let index_buffer = Buffer::create_buffer_during_init(
+        device,
+        String::from("Quad Index Buffer"),
+        bytemuck::cast_slice(QUAD_INDICES),
+        wgpu::BufferUsages::INDEX,
+    );
 
     Mesh {
         name: String::from("Quad Mesh"),
