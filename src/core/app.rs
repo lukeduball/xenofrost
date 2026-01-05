@@ -11,15 +11,15 @@ const FRAMES_PER_UPDATE_MICRO_SECONDS: u128 = 1600;
 pub struct App<WorldData, RenderData> {
     app_name: &'static str,
     window: Option<Arc<winit::window::Window>>,
-    startup_hook: fn(&mut WorldData, &mut RenderData, &mut InputManager, &RenderEngine),
+    startup_hook: fn(&mut InputManager, &RenderEngine) -> (WorldData, RenderData),
     resize_hook: fn(&mut WorldData, &mut RenderData, &RenderEngine),
     update_hook: fn(&mut WorldData, &InputManager),
     prepare_hook: fn(&mut WorldData, &mut RenderData, &RenderEngine),
     render_hook: fn(&RenderData, &RenderEngine) -> Result<(), wgpu::SurfaceError>,
     input_manager: InputManager,
     render_engine: Option<RenderEngine>,
-    world_data: WorldData,
-    render_data: RenderData,
+    world_data: Option<WorldData>,
+    render_data: Option<RenderData>,
 
     is_startup: bool,
     previous_update_time: Instant,
@@ -28,10 +28,8 @@ pub struct App<WorldData, RenderData> {
 
 impl<WorldData, RenderData> App<WorldData, RenderData> {
     pub fn new(
-        app_name: &'static str, 
-        world_data: WorldData, 
-        render_data: RenderData, 
-        startup_hook: fn(&mut WorldData, &mut RenderData, &mut InputManager, &RenderEngine),
+        app_name: &'static str,  
+        startup_hook: fn(&mut InputManager, &RenderEngine) -> (WorldData, RenderData),
         resize_hook: fn(&mut WorldData, &mut RenderData, &RenderEngine), 
         update_hook: fn(&mut WorldData, &InputManager),
         prepare_hook: fn(&mut WorldData, &mut RenderData, &RenderEngine), 
@@ -47,8 +45,8 @@ impl<WorldData, RenderData> App<WorldData, RenderData> {
             render_hook,
             input_manager: InputManager::new(),
             render_engine: None,
-            world_data,
-            render_data,
+            world_data: None,
+            render_data: None,
             is_startup: true,
             previous_update_time: Instant::now(),
             lag: 0,
@@ -146,7 +144,9 @@ impl<'a, WorldData, RenderData> ApplicationHandler<EngineEvent> for AppRunner<'a
         let scale_factor = self.app.window.as_ref().unwrap().scale_factor();
 
         if self.app.is_startup {
-            (self.app.startup_hook)(&mut self.app.world_data, &mut self.app.render_data, &mut self.app.input_manager, &self.app.render_engine.as_ref().unwrap());
+            let (app_world_data, app_render_data) = (self.app.startup_hook)(&mut self.app.input_manager, &self.app.render_engine.as_ref().unwrap());
+            self.app.world_data = Some(app_world_data);
+            self.app.render_data = Some(app_render_data);
             self.app.is_startup = false;
         }
 
@@ -164,7 +164,7 @@ impl<'a, WorldData, RenderData> ApplicationHandler<EngineEvent> for AppRunner<'a
             WindowEvent::Resized(physical_size) => {
                 #[cfg(not(target_arch="wasm32"))] {
                     self.app.resize(physical_size.width, physical_size.height);
-                    (self.app.resize_hook)(&mut self.app.world_data, &mut self.app.render_data, &self.app.render_engine.as_ref().unwrap());
+                    (self.app.resize_hook)(&mut self.app.world_data.as_mut().unwrap(), &mut self.app.render_data.as_mut().unwrap(), &self.app.render_engine.as_ref().unwrap());
                 }
             },
             WindowEvent::RedrawRequested => {
@@ -174,12 +174,12 @@ impl<'a, WorldData, RenderData> ApplicationHandler<EngineEvent> for AppRunner<'a
 
                 while self.app.lag > FRAMES_PER_UPDATE_MICRO_SECONDS {
                     self.app.input_manager.process_button_press_release_data();
-                    (self.app.update_hook)(&mut self.app.world_data, &self.app.input_manager);
+                    (self.app.update_hook)(&mut self.app.world_data.as_mut().unwrap(), &self.app.input_manager);
                     self.app.lag -= FRAMES_PER_UPDATE_MICRO_SECONDS;
-                    (self.app.prepare_hook)(&mut self.app.world_data, &mut self.app.render_data, &self.app.render_engine.as_mut().unwrap());
+                    (self.app.prepare_hook)(&mut self.app.world_data.as_mut().unwrap(), &mut self.app.render_data.as_mut().unwrap(), &self.app.render_engine.as_mut().unwrap());
                 }
 
-                let app_render_result = (self.app.render_hook)(&self.app.render_data, &self.app.render_engine.as_ref().unwrap());
+                let app_render_result = (self.app.render_hook)(&self.app.render_data.as_ref().unwrap(), &self.app.render_engine.as_ref().unwrap());
                 if !self.app.render_engine.as_mut().unwrap().successful_render(app_render_result) {
                     event_loop.exit();
                 }
