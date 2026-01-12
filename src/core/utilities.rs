@@ -12,13 +12,28 @@ macro_rules! include_bytes_from_project_path {
     };
 }
 
-use std::ops::{Deref, DerefMut, Index};
+use std::{cell::RefCell, ops::{Deref, DerefMut, Index}, rc::Rc};
 
 pub(crate) use include_str_from_project_path;
 
 pub struct Entry<T> {
     data: T,
-    index: usize
+    index_handle: Rc<RefCell<usize>>
+}
+
+impl<T> Entry<T> {
+    pub fn get_index(&self) -> usize {
+        self.index_handle.borrow().clone()
+    }
+
+    pub fn get_index_handle(&self) -> Rc<RefCell<usize>> {
+        Rc::clone(&self.index_handle)
+    }
+
+    pub fn set_index(&self, index: usize) {
+        let mut index_handle_mut = self.index_handle.borrow_mut();
+        *index_handle_mut = index;
+    }
 }
 
 impl<T> Deref for Entry<T> {
@@ -62,14 +77,14 @@ impl<T> WorldVec<T> {
         let vec_size = self.vector.len();
         let removed = self.vector.swap_remove(index);
         if index != vec_size - 1 {
-            self.vector[index].index = index;
+            self.vector[index].set_index(index);
         }
         removed.data
     }
 
     pub fn push(&mut self, object: T) {
         let index = self.vector.len();
-        self.vector.push(Entry { data: object, index });
+        self.vector.push(Entry { data: object, index_handle: Rc::new(RefCell::new(index)) });
     }
 }
 
