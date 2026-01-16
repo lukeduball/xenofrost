@@ -18,19 +18,19 @@ pub(crate) use include_str_from_project_path;
 
 pub struct Entry<T> {
     data: T,
-    index_handle: Rc<RefCell<usize>>
+    index_handle: Rc<RefCell<Option<usize>>>
 }
 
 impl<T> Entry<T> {
-    pub fn get_index(&self) -> usize {
+    pub fn get_index(&self) -> Option<usize> {
         self.index_handle.borrow().clone()
     }
 
-    pub fn get_index_handle(&self) -> Rc<RefCell<usize>> {
+    pub fn get_index_handle(&self) -> Rc<RefCell<Option<usize>>> {
         Rc::clone(&self.index_handle)
     }
 
-    pub fn set_index(&self, index: usize) {
+    pub fn set_index(&self, index: Option<usize>) {
         let mut index_handle_mut = self.index_handle.borrow_mut();
         *index_handle_mut = index;
     }
@@ -73,23 +73,29 @@ impl<T> WorldVec<T> {
         self.vector.iter_mut()
     }
 
-    pub fn swap_remove(&mut self, index: usize) -> T {
-        let vec_size = self.vector.len();
-        let removed = self.vector.swap_remove(index);
-        if index != vec_size - 1 {
-            self.vector[index].set_index(index);
+    pub fn swap_remove(&mut self, index_option: Option<usize>) -> Option<T> {
+        if let Some(index) = index_option {
+            let vec_size = self.vector.len();
+            let removed = self.vector.swap_remove(index);
+            if index != vec_size - 1 {
+                self.vector[index].set_index(Some(index));
+            }
+            removed.set_index(None);
+            return Some(removed.data)
         }
-        removed.data
+
+        println!("Attempting to remove object which has already been removed!");
+        None
     }
 
     pub fn push(&mut self, object: T) {
         let index = self.vector.len();
-        self.vector.push(Entry { data: object, index_handle: Rc::new(RefCell::new(index)) });
+        self.vector.push(Entry { data: object, index_handle: Rc::new(RefCell::new(Some(index))) });
     }
 }
 
 impl<T> Index<usize> for WorldVec<T> {
-    type Output = T;
+    type Output = Entry<T>;
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.vector[index]
