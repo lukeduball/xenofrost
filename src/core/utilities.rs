@@ -61,6 +61,10 @@ impl<T> WorldVec<T> {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.vector.is_empty()
+    }
+
     pub fn len(&self) -> usize {
         self.vector.len()
     }
