@@ -135,24 +135,37 @@ impl<T> IntoIterator for WorldVec<T> {
     }
 }
 
+pub fn convert_seconds_to_frames(seconds: f32) -> u32 {
+    let frames = seconds * 60.0;
+    frames.ceil() as u32
+}
+
 //Timer value and count are in frames. There 60 frames a second.
 pub struct Timer {
-    count: u64,
-    timer_value: u64,
+    count: u32,
+    expire_time: u32,
 }
 
 impl Timer {
     pub fn create_timer_with_seconds(seconds: f32) -> Self {
-        let frames = seconds * 60.0;
-        let timer_frames = frames.ceil() as u64;
+        let timer_frames = convert_seconds_to_frames(seconds);
         Self::create_timer_from_update_frames(timer_frames)
     }
 
-    pub fn create_timer_from_update_frames(frames: u64) -> Self {
+    pub fn create_timer_from_update_frames(frames: u32) -> Self {
         Self {
             count: 0,
-            timer_value: frames
+            expire_time: frames
         }
+    }
+
+    pub fn set_expire_time_from_seconds(&mut self, expire_time_sec: f32) {
+        let timer_frames = convert_seconds_to_frames(expire_time_sec);
+        self.set_expire_time_from_frames(timer_frames);
+    }
+
+    pub fn set_expire_time_from_frames(&mut self, expire_time: u32) {
+        self.expire_time = expire_time;
     }
 
     pub fn run(&mut self) {
@@ -162,7 +175,7 @@ impl Timer {
     }
 
     pub fn is_timer_expired(&self) -> bool {
-        self.count >= self.timer_value
+        self.count >= self.expire_time
     }
 
     pub fn initialize_timer(&mut self) {
