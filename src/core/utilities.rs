@@ -134,3 +134,38 @@ impl<T> IntoIterator for WorldVec<T> {
         self.vector.into_iter()
     }
 }
+
+//Timer value and count are in frames. There 60 frames a second.
+pub struct Timer {
+    count: u64,
+    timer_value: u64,
+}
+
+impl Timer {
+    pub fn create_timer_with_seconds(seconds: f32) -> Self {
+        let frames = seconds * 60.0;
+        let timer_frames = frames.ceil() as u64;
+        Self::create_timer_from_update_frames(timer_frames)
+    }
+
+    pub fn create_timer_from_update_frames(frames: u64) -> Self {
+        Self {
+            count: 0,
+            timer_value: frames
+        }
+    }
+
+    pub fn run(&mut self) {
+        if !self.is_timer_expired() {
+            self.count += 1;
+        }
+    }
+
+    pub fn is_timer_expired(&self) -> bool {
+        self.count >= self.timer_value
+    }
+
+    pub fn initialize_timer(&mut self) {
+        self.count = 0;
+    }
+}

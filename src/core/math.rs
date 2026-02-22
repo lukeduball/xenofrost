@@ -2,6 +2,7 @@ pub mod bounding2d;
 
 pub use glam::*;
 
+#[derive(Clone)]
 pub struct Transform2d {
     translation: Vec2,
     rotation: f32,
