@@ -1,10 +1,55 @@
+use glam::Vec2;
 use image::GenericImageView;
 use wgpu::BindGroupDescriptor;
+
+pub struct TextureCoordUtil {
+    width: u32,
+    height: u32,
+}
+
+impl TextureCoordUtil {
+    pub fn new(width: u32, height: u32) -> Self {
+        Self {
+            width,
+            height,
+        }
+    }
+
+    pub fn get_texture_coord_from_pixels(&self, x_pixel: u32, y_pixel: u32) -> Vec2 {
+        Vec2 { x: x_pixel as f32 / self.width as f32, y: y_pixel as f32 / self.height as f32 }
+    }
+}
+
+pub struct TextureAtlasUtil {
+    atlas_width: u32,
+    atlas_height: u32,
+    texture_coord_util: TextureCoordUtil
+}
+
+impl TextureAtlasUtil {
+    pub fn new(atlas_width: u32, atlas_height: u32, texture_width: u32, texture_height: u32) -> Self {
+        Self {
+            atlas_width,
+            atlas_height,
+            texture_coord_util: TextureCoordUtil::new(texture_width, texture_height)
+        }
+    }
+
+    pub fn get_texture_coords_from_atlas_coords(&self, atlas_x_index: u32, atlas_y_index: u32) -> Vec2 {
+        self.texture_coord_util.get_texture_coord_from_pixels(self.atlas_width * atlas_x_index, self.atlas_height * atlas_y_index)
+    }
+
+    pub fn get_atlas_size_in_tex_coords(&self) -> Vec2 {
+        self.texture_coord_util.get_texture_coord_from_pixels(self.atlas_width, self.atlas_width)
+    }
+}
 
 pub struct Texture {
     pub _texture: wgpu::Texture,
     pub view: wgpu::TextureView,
     pub sampler: wgpu::Sampler,
+    pub width: u32,
+    pub height: u32,
 }
 
 impl Texture {
@@ -75,7 +120,7 @@ impl Texture {
             }
         );
 
-        Self {_texture: texture, view, sampler}
+        Self {_texture: texture, view, sampler, width: dimensions.0, height: dimensions.1}
     }
 }
 
