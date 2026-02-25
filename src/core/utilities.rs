@@ -69,11 +69,11 @@ impl<T> WorldVec<T> {
         self.vector.len()
     }
 
-    pub fn iter(&self) -> std::slice::Iter<Entry<T>> {
+    pub fn iter(&'_ self) -> std::slice::Iter<'_, Entry<T>> {
         self.vector.iter()
     }
 
-    pub fn iter_mut(&mut self) -> std::slice::IterMut<Entry<T>> {
+    pub fn iter_mut(&'_ mut self) -> std::slice::IterMut<'_, Entry<T>> {
         self.vector.iter_mut()
     }
 
