@@ -4,10 +4,11 @@ use mesh::Mesh;
 use winit::window::Window;
 
 pub mod buffer;
-pub mod render_camera;
-pub mod texture;
+pub mod gui;
 pub mod mesh;
 pub mod pipeline;
+pub mod render_camera;
+pub mod texture;
 
 pub fn create_command_encoder(device: &wgpu::Device, label: &str) -> wgpu::CommandEncoder {
     let command_encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -157,6 +158,8 @@ impl RenderEngine {
 pub trait DrawMesh<'a> {
     fn draw_mesh(&mut self, mesh: &'a Mesh, camera_bind_group: &'a wgpu::BindGroup);
     fn draw_mesh_instanced(&mut self, mesh: &'a Mesh, instances: Range<u32>, camera_bind_group: &'a wgpu::BindGroup);
+    fn draw_mesh_no_camera(&mut self, mesh: &'a Mesh);
+    fn draw_mesh_instanced_no_camera(&mut self, mesh: &'a Mesh, instances: Range<u32>);
 }
 
 impl<'a,'b> DrawMesh<'b> for wgpu::RenderPass<'a> 
@@ -171,6 +174,16 @@ where 'b: 'a,
     
     fn draw_mesh(&mut self, mesh: &'b Mesh, camera_bind_group: &'b wgpu::BindGroup) {
         self.draw_mesh_instanced(mesh, 0..1, camera_bind_group);
+    }
+    
+    fn draw_mesh_no_camera(&mut self, mesh: &'b Mesh) {
+        self.draw_mesh_instanced_no_camera(mesh, 0..1);
+    }
+    
+    fn draw_mesh_instanced_no_camera(&mut self, mesh: &'b Mesh, instances: Range<u32>) {
+        self.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+        self.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+        self.draw_indexed(0..mesh.num_elements, 0, instances);
     }
 }
 

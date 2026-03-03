@@ -7,8 +7,8 @@ use crate::core::{render_engine::{buffer::Buffer, mesh::{Mesh, PositionVertex}},
 use super::mesh::{ModelVertex, Vertex};
 
 pub struct PipelineLayoutDescriptor<'a> {
-    label: &'a str,
-    bind_group_layouts: Vec<&'a wgpu::BindGroupLayout>,
+    pub label: &'a str,
+    pub bind_group_layouts: Vec<&'a wgpu::BindGroupLayout>,
 }
 
 impl<'a> PipelineLayoutDescriptor<'a> {
@@ -23,27 +23,27 @@ impl<'a> PipelineLayoutDescriptor<'a> {
     } 
 }
 
-struct VertexState<'a> {
-    module: &'a wgpu::ShaderModule,
-    entry_point: &'a str,
-    buffers: Vec<wgpu::VertexBufferLayout<'a>>
+pub struct VertexState<'a> {
+    pub module: &'a wgpu::ShaderModule,
+    pub entry_point: &'a str,
+    pub buffers: Vec<wgpu::VertexBufferLayout<'a>>
 }
 
-struct FragmentState<'a> {
-    module: &'a wgpu::ShaderModule,
-    entry_point: &'a str,
-    targets: Vec<Option<wgpu::ColorTargetState>>,
+pub struct FragmentState<'a> {
+    pub module: &'a wgpu::ShaderModule,
+    pub entry_point: &'a str,
+    pub targets: Vec<Option<wgpu::ColorTargetState>>,
 }
 
 pub struct RenderPipelineDescriptor<'a> {
-    label: &'a str,
-    layout: &'a PipelineLayoutDescriptor<'a>,
-    vertex: VertexState<'a>,
-    fragment: FragmentState<'a>,
-    primitive: wgpu::PrimitiveState,
-    depth_stencil: Option<wgpu::DepthStencilState>,
-    multisample: wgpu::MultisampleState,
-    multiview: Option<NonZero<u32>>,
+    pub label: &'a str,
+    pub layout: &'a PipelineLayoutDescriptor<'a>,
+    pub vertex: VertexState<'a>,
+    pub fragment: FragmentState<'a>,
+    pub primitive: wgpu::PrimitiveState,
+    pub depth_stencil: Option<wgpu::DepthStencilState>,
+    pub multisample: wgpu::MultisampleState,
+    pub multiview: Option<NonZero<u32>>,
 }
 
 pub fn create_shader(device: &wgpu::Device, label: &str, shader_path: &str) -> wgpu::ShaderModule {
@@ -111,7 +111,7 @@ pub fn create_default_pipeline2d_descriptor<'a>(
     descriptor
 }
 
-fn create_render_pipeline_from_descriptor(device: &wgpu::Device, descriptor: RenderPipelineDescriptor) -> wgpu::RenderPipeline {
+pub fn create_render_pipeline_from_descriptor(device: &wgpu::Device, descriptor: RenderPipelineDescriptor) -> wgpu::RenderPipeline {
     let render_pipeline_layout = descriptor.layout.create_pipeline_layout_descriptor_object(device);
     
     let render_pipeline_descriptor = wgpu::RenderPipelineDescriptor {
@@ -277,6 +277,22 @@ impl InstanceAtlas {
             ]
         }
     }
+}
+
+pub fn create_aspect_ratio_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
+    let aspect_ratio_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        label: Some("Aspect Ratio Bind Group Layout"),
+        entries: &[
+            wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::VERTEX,
+                ty: wgpu::BindingType::Buffer { ty: wgpu::BufferBindingType::Uniform, has_dynamic_offset: false, min_binding_size: None },
+                count: None
+            }
+        ]
+    });
+
+    aspect_ratio_bind_group_layout
 }
 
 pub fn create_color_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
