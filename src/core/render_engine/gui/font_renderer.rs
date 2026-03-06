@@ -159,16 +159,18 @@ pub struct CharacterInstance {
     pub texcoords_x: Vec2,
     pub texcoords_y: Vec2,
     pub color: Vec3,
+    pub options: u32
 }
 
 impl CharacterInstance {
-    const ATTRIBUTES: [wgpu::VertexAttribute; 6] = vertex_attr_array![
+    const ATTRIBUTES: [wgpu::VertexAttribute; 7] = vertex_attr_array![
         1 => Float32x2,
         2 => Float32x2,
         3 => Float32x2,
         4 => Float32x2,
         5 => Float32x2,
-        6 => Float32x3
+        6 => Float32x3,
+        7 => Uint32
     ];
 
     fn desc() -> wgpu::VertexBufferLayout<'static> {
@@ -180,7 +182,7 @@ impl CharacterInstance {
     }
 }
 
-pub fn construct_string_instance_data(text: &str, screen_position: Vec2, font_size: f32, color: Vec3, font_specification: &FontSpecification) -> Vec<CharacterInstance> {
+pub fn construct_string_instance_data(text: &str, screen_position: Vec2, font_size: f32, color: Vec3, scale_with_screen: bool, font_specification: &FontSpecification) -> Vec<CharacterInstance> {
     let mut character_instance_list = Vec::new();
 
     let mut cursor_position = 0.0;
@@ -199,7 +201,8 @@ pub fn construct_string_instance_data(text: &str, screen_position: Vec2, font_si
                 relative_position, 
                 texcoords_x: char_spec.texcoords_x, 
                 texcoords_y: char_spec.texcoords_y,
-                color
+                color,
+                options: scale_with_screen as u32
             };
             character_instance_list.push(char_instance);
         }

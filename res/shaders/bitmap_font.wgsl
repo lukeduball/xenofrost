@@ -14,7 +14,8 @@ struct InstanceInput {
     @location(3) relative_position: vec2<f32>,
     @location(4) texcoords_x: vec2<f32>,
     @location(5) texcoords_y: vec2<f32>,
-    @location(6) color: vec3<f32>
+    @location(6) color: vec3<f32>,
+    @location(7) options: u32
 };
 
 struct AspectRatioUniform {
@@ -40,7 +41,11 @@ fn vs_main(
     var out: VertexOutput;
     out.tex_coords.x = instance.texcoords_x[vertex_index / 2];
     out.tex_coords.y = instance.texcoords_y[vertex_index % 2];
-    var relative_position = vec2(vertex.position.xy * instance.size * font_ratio_uniform.font_ratio + instance.relative_position * font_ratio_uniform.font_ratio);
+    var font_ratio = font_ratio_uniform.font_ratio;
+    if instance.options == 1 {
+        font_ratio = 1.0;
+    }
+    var relative_position = vec2(vertex.position.xy * instance.size * font_ratio + instance.relative_position * font_ratio);
     relative_position.y *= aspect_ratio_uniform.aspect_ratio;
     out.clip_position = vec4(instance.position + relative_position, 0.0, 1.0);
     out.color = instance.color;
