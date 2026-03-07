@@ -4,16 +4,18 @@ use glam::{Vec2, Vec3};
 use serde::{Deserialize, Serialize};
 use wgpu::vertex_attr_array;
 
-use crate::{core::render_engine::{mesh::{PositionVertex, Vertex}, pipeline::{PipelineLayoutDescriptor, VertexState, create_default_pipeline2d_descriptor, create_render_pipeline_from_descriptor, create_shader}, texture::Texture}, include_bytes_from_project_path, include_str_from_project_path};
+use crate::{core::render_engine::{buffer::Buffer, mesh::{PositionVertex, Vertex}, pipeline::{PipelineLayoutDescriptor, VertexState, create_default_pipeline2d_descriptor, create_render_pipeline_from_descriptor, create_shader}, texture::Texture}, include_bytes_from_project_path, include_str_from_project_path};
 
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct AtlasData {
     #[serde(rename = "type")]
     font_type: String,
+    distance_range: Option<f32>,
+    distance_range_middle: Option<f32>,
     size: f32,
     width: u32,
     height: u32,
-    #[serde(rename = "yOrigin")]
     y_origin: String
 }
 
@@ -93,7 +95,7 @@ impl CharacterSpecification {
 }
 
 pub struct FontSpecification {
-    _atlas: AtlasData,
+    atlas: AtlasData,
     _metrics: MetricData,
     glyphs: HashMap<char, CharacterSpecification>,
     _kerning: Vec<String>
@@ -104,14 +106,14 @@ impl FontSpecification {
         let mut glyphs_hash_map = HashMap::new();
         for character_data in font_info.glyphs {
             let character = char::from_u32(character_data.unicode).unwrap();
-            //Resize so the base font size of 1 refers to 4px per em
+            //Resize the base font size
             let factor = 2.0 / font_info.atlas.size;
             let character_spec = CharacterSpecification::create_char_spec_from_char_info(character_data, font_info.atlas.width, font_info.atlas.height, factor);
             glyphs_hash_map.insert(character, character_spec);
         }
 
         Self {
-            _atlas: font_info.atlas,
+            atlas: font_info.atlas,
             _metrics: font_info.metrics,
             glyphs: glyphs_hash_map,
             _kerning: font_info.kerning
@@ -138,16 +140,106 @@ pub fn get_font_from_defaults(font: DefaultFonts, device: &wgpu::Device, queue: 
         DefaultFonts::OpenSans => {
             let font_info: FontInformation = serde_json::from_str(include_str_from_project_path!("/res/fonts/opensans.json")).unwrap();
             let font_spec = FontSpecification::create_font_spec_from_font_info(font_info);
-            let texture_atlas = Texture::from_bytes(device, queue, include_bytes_from_project_path!("/res/fonts/opensans.png"), "OpenSans Font Atlas Texture");
+            let texture_atlas = Texture::from_bytes_no_gamma_correction(device, queue, include_bytes_from_project_path!("/res/fonts/opensans.png"), "OpenSans Font Atlas Texture");
             (font_spec, texture_atlas)
         },
         DefaultFonts::OpenSansSDF => {
             let font_info: FontInformation = serde_json::from_str(include_str_from_project_path!("/res/fonts/opensans-sdf.json")).unwrap();
             let font_spec = FontSpecification::create_font_spec_from_font_info(font_info);
-            let texture_atlas = Texture::from_bytes(device, queue, include_bytes_from_project_path!("/res/fonts/opensans-sdf.png"), "OpenSansSDF Font Atlas Texture");
-            (font_spec, texture_atlas)
+            let texture_atlas = Texture::from_bytes_no_gamma_correction(device, queue, include_bytes_from_project_path!("/res/fonts/opensans-sdf.png"), "OpenSansSDF Font Atlas Texture");
+            (font_spec, texture_atlas, )
         }
     }
+}
+
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+#[repr(C)]
+pub struct SdfCharacterInstance {
+    pub size: Vec2,
+    pub position: Vec2,
+    pub relative_position: Vec2,
+    pub texcoords_x: Vec2,
+    pub texcoords_y: Vec2,
+    pub color: Vec3,
+    pub options: u32,
+    pub outline_color: Vec3,
+    pub thickness: f32
+}
+
+impl SdfCharacterInstance {
+    const ATTRIBUTES: [wgpu::VertexAttribute; 9] = vertex_attr_array![
+        1 => Float32x2,
+        2 => Float32x2,
+        3 => Float32x2,
+        4 => Float32x2,
+        5 => Float32x2,
+        6 => Float32x3,
+        7 => Uint32,
+        8 => Float32x3,
+        9 => Float32
+    ];
+
+    fn desc() -> wgpu::VertexBufferLayout<'static> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Instance,
+            attributes: &Self::ATTRIBUTES
+        }
+    }
+}
+
+pub fn construct_sdf_string_instance_data(text: &str, screen_position: Vec2, font_size: f32, color: Vec3, scale_with_screen: bool, font_specification: &FontSpecification) -> Vec<SdfCharacterInstance> {
+    let mut sdf_character_instance_list = Vec::new();
+
+    let mut cursor_position = 0.0;
+    for character in text.chars() {
+        let char_specification_option = font_specification.glyphs.get(&character);
+        let char_spec = match char_specification_option {
+            Some(char_spec) => char_spec,
+            None => font_specification.glyphs.get(&'*').unwrap(),
+        };
+        if let Some(size) = char_spec.size {
+            let mut relative_position = char_spec.position * font_size;
+            relative_position.x += cursor_position;
+            let char_instance = SdfCharacterInstance { 
+                size: size * font_size, 
+                position: screen_position,
+                relative_position, 
+                texcoords_x: char_spec.texcoords_x, 
+                texcoords_y: char_spec.texcoords_y,
+                color,
+                options: scale_with_screen as u32,
+                outline_color: color,
+                thickness: 0.0
+            };
+            sdf_character_instance_list.push(char_instance);
+        }
+        cursor_position += char_spec.advance * font_size;
+    }
+
+    sdf_character_instance_list
+}
+
+pub fn get_sdf_aem_distance_bind_group(font_spec: &FontSpecification, sdf_aem_distance_bind_group_layout: &wgpu::BindGroupLayout, device: &wgpu::Device) -> wgpu::BindGroup {
+    let distance_range_middle = font_spec.atlas.distance_range_middle.unwrap();
+    let distance_range = font_spec.atlas.distance_range.unwrap();
+    let aem_distance_vec = Vec2::new(
+        (distance_range_middle - distance_range / 2.0) / font_spec.atlas.width as f32,
+        (distance_range_middle + distance_range / 2.0) / font_spec.atlas.height as f32
+    );
+    
+    let buffer = Buffer::create_buffer_during_init(device, String::from("SDF aem Distance Bind Group"), bytemuck::bytes_of(&aem_distance_vec), wgpu::BufferUsages::UNIFORM);
+    
+    device.create_bind_group(&wgpu::BindGroupDescriptor {
+        label: Some("SDF aem Distance Bind Group"),
+        layout: sdf_aem_distance_bind_group_layout,
+        entries: &[
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: buffer.as_entire_binding()
+            }
+        ]
+    })
 }
 
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
@@ -212,6 +304,22 @@ pub fn construct_string_instance_data(text: &str, screen_position: Vec2, font_si
     character_instance_list
 }
 
+pub fn create_sdf_aemrange_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
+    let sdf_aemrange_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        label: Some("SDF AEM Range Bind Group Layout"),
+        entries: &[
+            wgpu::BindGroupLayoutEntry {
+                binding: 0, 
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Buffer { ty: wgpu::BufferBindingType::Uniform, has_dynamic_offset: false, min_binding_size: None },
+                count: None
+            }
+        ]
+    });
+
+    sdf_aemrange_bind_group_layout
+}
+
 pub fn get_font_ratio(width: f32) -> f32 {
     1920.0 / width
 }
@@ -247,6 +355,27 @@ pub fn create_bitmap_font_pipeline(
     let mut pipeline_descriptor = create_default_pipeline2d_descriptor(config, &pipeline_layout_descriptor, &shader_module);
     pipeline_descriptor.label = "Bitmap Font Pipeline";
     pipeline_descriptor.vertex = VertexState { module: &shader_module, entry_point: "vs_main", buffers: vec![PositionVertex::desc(), CharacterInstance::desc()] };
+
+    let pipeline = create_render_pipeline_from_descriptor(device, pipeline_descriptor);
+    pipeline
+}
+
+pub fn create_sdf_font_pipeline(
+    device: &wgpu::Device,
+    config: &wgpu::SurfaceConfiguration,
+    texture_bind_group_layout: &wgpu::BindGroupLayout,
+    aspect_ratio_bind_group_layout: &wgpu::BindGroupLayout,
+    font_ratio_bind_group_layout: &wgpu::BindGroupLayout,
+    sdf_aem_range_bind_group: &wgpu::BindGroupLayout
+) -> wgpu::RenderPipeline {
+    let pipeline_layout_descriptor = PipelineLayoutDescriptor {
+        label: "SDF Font Pipeline Layout Descriptor",
+        bind_group_layouts: vec![texture_bind_group_layout, aspect_ratio_bind_group_layout, font_ratio_bind_group_layout, sdf_aem_range_bind_group]
+    };
+    let shader_module = create_shader(device, "SDF Font Shader", include_str_from_project_path!("/res/shaders/sdf_font.wgsl"));
+    let mut pipeline_descriptor = create_default_pipeline2d_descriptor(config, &pipeline_layout_descriptor, &shader_module);
+    pipeline_descriptor.label = "SDF Font Pipeline";
+    pipeline_descriptor.vertex = VertexState { module: &shader_module, entry_point: "vs_main", buffers: vec![PositionVertex::desc(), SdfCharacterInstance::desc()] };
 
     let pipeline = create_render_pipeline_from_descriptor(device, pipeline_descriptor);
     pipeline

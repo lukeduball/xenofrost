@@ -60,13 +60,35 @@ impl Texture {
         label: &str
     ) -> Self {
         let img = image::load_from_memory(bytes).unwrap();
-        Self::from_image(device, queue, &img, Some(label))
+        Self::from_image(device, queue, &img, wgpu::TextureFormat::Rgba8UnormSrgb, Some(label))
+    }
+
+    pub fn from_bytes_no_gamma_correction(
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        bytes: &[u8],
+        label: &str
+    ) -> Self {
+        let img = image::load_from_memory(bytes).unwrap();
+        Self::from_image(device, queue, &img, wgpu::TextureFormat::Rgba8Unorm, Some(label))
+    }
+
+    pub fn from_bytes_with_texture_format(
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        bytes: &[u8],
+        texture_format: wgpu::TextureFormat,
+        label: &str
+    ) -> Self {
+        let img = image::load_from_memory(bytes).unwrap();
+        Self::from_image(device, queue, &img, texture_format, Some(label))
     }
 
     pub fn from_image(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         img: &image::DynamicImage,
+        texture_format: wgpu::TextureFormat,
         label: Option<&str>
     ) -> Self {
         let rbga = img.to_rgba8();
@@ -85,7 +107,7 @@ impl Texture {
                 mip_level_count: 1,
                 sample_count: 1,
                 dimension: wgpu::TextureDimension::D2,
-                format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                format: texture_format,
                 usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
                 view_formats: &[]
             }
