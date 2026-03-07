@@ -163,11 +163,14 @@ pub struct SdfCharacterInstance {
     pub color: Vec3,
     pub options: u32,
     pub outline_color: Vec3,
-    pub thickness: f32
+    pub outline_thickness: f32,
+    pub glow_color: Vec3,
+    pub glow_thickness: f32,
+    pub glow_offset: Vec2,
 }
 
 impl SdfCharacterInstance {
-    const ATTRIBUTES: [wgpu::VertexAttribute; 9] = vertex_attr_array![
+    const ATTRIBUTES: [wgpu::VertexAttribute; 12] = vertex_attr_array![
         1 => Float32x2,
         2 => Float32x2,
         3 => Float32x2,
@@ -176,7 +179,10 @@ impl SdfCharacterInstance {
         6 => Float32x3,
         7 => Uint32,
         8 => Float32x3,
-        9 => Float32
+        9 => Float32,
+        10 => Float32x3,
+        11 => Float32,
+        12 => Float32x2
     ];
 
     fn desc() -> wgpu::VertexBufferLayout<'static> {
@@ -188,7 +194,19 @@ impl SdfCharacterInstance {
     }
 }
 
-pub fn construct_sdf_string_instance_data(text: &str, screen_position: Vec2, font_size: f32, color: Vec3, scale_with_screen: bool, font_specification: &FontSpecification) -> Vec<SdfCharacterInstance> {
+pub fn construct_sdf_string_instance_data(
+    text: &str, 
+    screen_position: Vec2, 
+    font_size: f32, 
+    color: Vec3, 
+    scale_with_screen: bool, 
+    outline_color: Vec3, 
+    outline_thickness: f32,
+    glow_color: Vec3,
+    glow_thickness: f32,
+    glow_offset: Vec2, 
+    font_specification: &FontSpecification
+) -> Vec<SdfCharacterInstance> {
     let mut sdf_character_instance_list = Vec::new();
 
     let mut cursor_position = 0.0;
@@ -201,6 +219,17 @@ pub fn construct_sdf_string_instance_data(text: &str, screen_position: Vec2, fon
         if let Some(size) = char_spec.size {
             let mut relative_position = char_spec.position * font_size;
             relative_position.x += cursor_position;
+
+            let mut options = scale_with_screen as u32;
+            if outline_thickness > 0.0 {
+                options |= 0x2;
+            }
+
+            let glow_offset_texcoords = Vec2::new(
+                char_spec.texcoords_x.y - char_spec.texcoords_x.x ,
+                char_spec.texcoords_y.y - char_spec.texcoords_y.x 
+            ) * glow_offset;
+
             let char_instance = SdfCharacterInstance { 
                 size: size * font_size, 
                 position: screen_position,
@@ -208,9 +237,12 @@ pub fn construct_sdf_string_instance_data(text: &str, screen_position: Vec2, fon
                 texcoords_x: char_spec.texcoords_x, 
                 texcoords_y: char_spec.texcoords_y,
                 color,
-                options: scale_with_screen as u32,
-                outline_color: color,
-                thickness: 0.0
+                options,
+                outline_color,
+                outline_thickness,
+                glow_color,
+                glow_thickness,
+                glow_offset: glow_offset_texcoords
             };
             sdf_character_instance_list.push(char_instance);
         }
