@@ -76,7 +76,7 @@ impl GuiValue {
     pub fn convert_to_logical(&self, parent_value: f32) -> f32 {
         match self {
             GuiValue::Pixels(px) => *px,
-            GuiValue::Percent(pct) => parent_value * pct,
+            GuiValue::Percent(pct) => parent_value * 0.01 * pct,
         }
     }
 }

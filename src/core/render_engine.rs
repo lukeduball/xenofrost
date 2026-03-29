@@ -175,7 +175,8 @@ impl RenderEngine {
     }
 
     pub fn convert_y_axis_value_to_view_space(&self, y_value: f32) -> f32 {
-        convert_coordinate_to_view_space(y_value, self.window_height as f32, self.window_scale_factor)
+        // Multiply result by negative 1 because y view space coordinates are 1(top of screen) -> -1(bottom of screen)
+        -convert_coordinate_to_view_space(y_value, self.window_height as f32, self.window_scale_factor)
     }
 
     pub fn convert_extents_to_view_space(&self, coordinates: Vec2) -> Vec2 {
@@ -195,11 +196,11 @@ impl RenderEngine {
 }
 
 pub fn convert_coordinate_to_view_space(value: f32, screen_extent: f32, screen_scaling: f32) -> f32 {
-    (2.0 * convert_extent_to_view_space(value, screen_extent, screen_scaling)) - 1.0
+    (convert_extent_to_view_space(value, screen_extent, screen_scaling)) - 1.0
 }
 
 pub fn convert_extent_to_view_space(value: f32, screen_extent: f32, screen_scaling: f32) -> f32 {
-    (value * screen_scaling) / screen_extent
+    2.0 * (value * screen_scaling) / screen_extent
 }
 
 pub trait DrawMesh<'a> {
