@@ -114,6 +114,8 @@ impl<'a, WorldData, RenderData> ApplicationHandler<EngineEvent> for AppRunner<'a
             })
             .expect("Could not append canvas to document body!");
         }
+
+        let scale_factor = window.scale_factor();
     
         let arc_window = Arc::new(window);
 
@@ -122,7 +124,7 @@ impl<'a, WorldData, RenderData> ApplicationHandler<EngineEvent> for AppRunner<'a
         #[cfg(target_arch="wasm32")]
         {
             let event_loop_proxy = self.event_loop_proxy.take();
-            let render_engine_fut = RenderEngine::new(Arc::clone(&arc_window), size.width, size.height, self.app.render_hook);
+            let render_engine_fut = RenderEngine::new(Arc::clone(&arc_window), size.width, size.height, self.app.render_hook, scale_factor as f32);
             wasm_bindgen_futures::spawn_local(async move {
                 let render_engine = render_engine_fut.await;
                 assert!(event_loop_proxy.unwrap().send_event(EngineEvent::CreateGraphicsEvent(render_engine)).is_ok());
@@ -131,7 +133,7 @@ impl<'a, WorldData, RenderData> ApplicationHandler<EngineEvent> for AppRunner<'a
 
         #[cfg(not(target_arch="wasm32"))]
         {
-            let render_engine = pollster::block_on(RenderEngine::new(arc_window, size.width, size.height));
+            let render_engine = pollster::block_on(RenderEngine::new(arc_window, size.width, size.height, scale_factor as f32));
             self.app.render_engine = Some(render_engine);
         }
     }

@@ -1,5 +1,6 @@
 use std::{ops::Range, sync::Arc};
 
+use glam::Vec2;
 use mesh::Mesh;
 use winit::window::Window;
 
@@ -25,11 +26,14 @@ pub struct RenderEngine {
     pub config: wgpu::SurfaceConfiguration,
     pub window_width: u32,
     pub window_height: u32,
+    pub window_scale_factor: f32,
+    pub window_logical_width: f32,
+    pub window_logical_height: f32,
     pub aspect_ratio: f32,
 }
 
 impl RenderEngine {
-    pub async fn new(window: Arc<Window>, width: u32, height: u32) -> RenderEngine {
+    pub async fn new(window: Arc<Window>, width: u32, height: u32, scale_factor: f32) -> RenderEngine {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             #[cfg(not(target_arch="wasm32"))]
             backends: wgpu::Backends::PRIMARY,
@@ -91,6 +95,9 @@ impl RenderEngine {
             config,
             window_width: width,
             window_height: height,
+            window_scale_factor: scale_factor,
+            window_logical_width: width as f32 / scale_factor,
+            window_logical_height: height as f32 / scale_factor,
             aspect_ratio,
         }
     }
@@ -148,11 +155,51 @@ impl RenderEngine {
     pub fn resize(&mut self, new_width: u32, new_height: u32) {
         self.window_width = new_width;
         self.window_height = new_height;
+        self.window_logical_width = new_width as f32 / self.window_scale_factor;
+        self.window_logical_height = new_height as f32 / self.window_scale_factor;
         self.config.width = new_width;
         self.config.height = new_height;
         self.aspect_ratio = new_width as f32 / new_height as f32;
         self.surface.configure(&self.device, &self.config);
     }
+
+    pub fn convert_coordinates_to_view_space(&self, coordinates: Vec2) -> Vec2 {
+        Vec2::new(
+            self.convert_x_axis_value_to_view_space(coordinates.x),
+            self.convert_y_axis_value_to_view_space(coordinates.y)
+        )
+    }
+
+    pub fn convert_x_axis_value_to_view_space(&self, x_value: f32) -> f32 {
+        convert_coordinate_to_view_space(x_value, self.window_width as f32, self.window_scale_factor)
+    }
+
+    pub fn convert_y_axis_value_to_view_space(&self, y_value: f32) -> f32 {
+        convert_coordinate_to_view_space(y_value, self.window_height as f32, self.window_scale_factor)
+    }
+
+    pub fn convert_extents_to_view_space(&self, coordinates: Vec2) -> Vec2 {
+        Vec2::new(
+            self.convert_width_value_to_view_space(coordinates.x),
+            self.convert_height_value_to_view_space(coordinates.y)
+        )
+    }
+
+    pub fn convert_width_value_to_view_space(&self, x_value: f32) -> f32 {
+        convert_extent_to_view_space(x_value, self.window_width as f32, self.window_scale_factor)
+    }
+
+    pub fn convert_height_value_to_view_space(&self, y_value: f32) -> f32 {
+        convert_extent_to_view_space(y_value, self.window_height as f32, self.window_scale_factor)
+    }
+}
+
+pub fn convert_coordinate_to_view_space(value: f32, screen_extent: f32, screen_scaling: f32) -> f32 {
+    (2.0 * convert_extent_to_view_space(value, screen_extent, screen_scaling)) - 1.0
+}
+
+pub fn convert_extent_to_view_space(value: f32, screen_extent: f32, screen_scaling: f32) -> f32 {
+    (value * screen_scaling) / screen_extent
 }
 
 pub trait DrawMesh<'a> {
